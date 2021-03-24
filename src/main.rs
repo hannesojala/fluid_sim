@@ -13,12 +13,12 @@ const SIZE: u32 = 128;
 const RATIO: u32 = 4;
 const WINDOW_SIZE: u32 = SIZE * RATIO;
 const FLAT_SIZE: usize = (SIZE * SIZE) as usize;
-const MAX_FPS: u64 = 144;
+const MAX_FPS: u64 = 60;
 const MIN_DT : Duration = Duration::from_millis(1000 / MAX_FPS);
 
-const DYE_DIFF_RATE: f32 = 0.005;
-const VISC_THINGY: f32 = 1.0;
-const GAUSS_SEIDEL_STEPS: u32 = 8;
+const DYE_DIFF_RATE: f32 = 0.00005;
+const VISC_THINGY: f32 = 0.0005;
+const GAUSS_SEIDEL_STEPS: u32 = 20;
 
 fn initial_velocity_fn(x:f32, y:f32) -> (f32, f32) {
     (0.0,0.0)//(8. * -y, 8. * x)
@@ -97,7 +97,7 @@ impl Engine {
     }
 
     fn diffuse_dye(&mut self, dt: f32) { // may be wrong
-        let rate = dt * DYE_DIFF_RATE;// * (SIZE as f32 * SIZE as f32);
+        let rate = dt * DYE_DIFF_RATE * (SIZE as f32 * SIZE as f32); // why?
         for k in 0..GAUSS_SEIDEL_STEPS { // is 20 in paper
             let mut updated_dye_field = vec![0.0; FLAT_SIZE];
             for (i, dye) in self.dye_field.iter().enumerate() {
@@ -132,7 +132,7 @@ impl Engine {
     }
 
     fn diffuse_velocities(&mut self, dt: f32) { // may be wrong
-        let rate = dt * VISC_THINGY;// * (SIZE as f32 * SIZE as f32);
+        let rate = dt * VISC_THINGY * (SIZE as f32 * SIZE as f32); // why size?
         for k in 0..GAUSS_SEIDEL_STEPS { // is 20 in paper
             let mut updated_vel_field = vec![(0.0,0.0); FLAT_SIZE];
             for (i, dye) in self.dye_field.iter().enumerate() {
@@ -178,7 +178,7 @@ impl Engine {
 
     fn remove_divergence(&mut self) {
         let mut p = vec![0.0; FLAT_SIZE];
-        let h = 1.0 / SIZE as f32;
+        let h = 1.0 / SIZE as f32; // why size?
 
         // find divergence
         let mut div = vec![0.0; FLAT_SIZE];
@@ -230,6 +230,8 @@ impl Engine {
         let delta_time = self.current_time.elapsed();
         let dt = delta_time.as_secs_f32();
         
+        self.dye_field[coord_to_idx((SIZE as i32 / 2, SIZE as i32 / 2))] = 1.0;
+
         self.diffuse_velocities(dt);    // WRONG
 
         // remove divergence before and after advection of velocities
