@@ -1,5 +1,5 @@
 [package]
-name = "flooyd"
+name = "fluid_sim"
 version = "0.1.0"
 authors = ["Hannes Ojala <hannesojala123@gmail.com>"]
 edition = "2018"
