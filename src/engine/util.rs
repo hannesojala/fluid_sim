@@ -142,7 +142,6 @@ pub fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32) -> Vec
     let mut new = vec![0.0; SIZE];
     for y in 1..N-1 {
         for x in 1..N-1 {
-            let s = sfield[i!(x,y)];
             let (vx, vy) = vfield[i!(x,y)];
             let (x0, y0) = (
                 (x as f32 - dt * vx).clamp(0.5, (N-1) as f32 - 0.5),
