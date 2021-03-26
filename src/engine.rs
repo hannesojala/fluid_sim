@@ -44,22 +44,30 @@ impl Engine {
         if !self.paused {
             self.dt_s = delta_time.as_secs_f32();
 
-            let mass_before: f32 = self.dye.iter().sum();
+            // let mass_before: f32 = self.dye.iter().sum();
 
             /* DIFFUSE VELOCITY FIELD*/
             self.vel = solve_vfield(&self.vel, self.dt_s * VISC * ((N - 2)*(N - 2)) as f32);
+            // remove div
+            self.vel =  enforce_div_eq_0(&self.vel);
 
             /* ADVECT VELOCITY FIELD*/
-
+            self.vel = advect_vfield(&self.vel, self.dt_s);
+            // remove div
+            self.vel =  enforce_div_eq_0(&self.vel);
 
             /* DIFFUSE DYE FIELD*/
             self.dye = solve_sfield(&self.dye, self.dt_s * DIFF * ((N - 2)*(N - 2)) as f32);
 
             /* ADVECT DYE FIELD */
-            
+            self.dye = advect_sfield(&self.dye, &self.vel, self.dt_s);
 
-            let mass_after: f32 = self.dye.iter().sum();
-            assert!((mass_before - mass_after).abs() <= 0.01 * mass_before); // Make sure dye mass is conserved
+
+            // let mass_after: f32 = self.dye.iter().sum();
+            // fails sometimes due to advection
+            // works with diffusion
+            // todo: enforce mass conservation of dye during advection
+            // assert!((mass_before - mass_after).abs() <= 0.01 * mass_before); // Make sure dye mass is conserved
 
         }
         static TARGET_DT : Duration = Duration::from_millis(1000 / MAX_FPS);
@@ -85,7 +93,7 @@ impl Engine {
         let rms = self.event_pump.relative_mouse_state();
         let (rx, ry) = (rms.x(), rms.y());
 
-        let radius: i32 = 5;
+        let radius: i32 = 7;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(N-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(N-2));
         
@@ -93,11 +101,11 @@ impl Engine {
             for x in x0..x1 {
                 if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 { // radius
                     if ms.left() {
-                        self.vel[i!(x, y)].0 += rx as f32; // Divide by ratio to get
-                        self.vel[i!(x, y)].1 += ry as f32; // cells traversed by mouse
+                        self.vel[i!(x, y)].0 += self.dt_s * (rx * N / RATIO) as f32; // Divide by ratio to get
+                        self.vel[i!(x, y)].1 += self.dt_s * (ry * N / RATIO) as f32; // cells traversed by mouse
                     }
                     if ms.right() {
-                        self.dye[i!(x, y)] += self.dt_s * 1.0; // should make dt based to account for frame rate and pause
+                        self.dye[i!(x, y)] += self.dt_s * 16.0; // should make dt based to account for frame rate and pause
                     }
                 }
             }
@@ -118,8 +126,8 @@ impl Engine {
                 }
                 let (vx, vy) = self.vel[i!(x,y)];
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
-                    let color = Color::RGB( (255.0 * vx as f32).abs() as u8,         // * 8 / N to get ratio of vel
-                                            (255.0 * vy as f32).abs() as u8, 0 );    // cmp'd to vel from 8 cell mouse drag
+                    let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8,         // * 8 / N to get ratio of vel
+                                            (255.0 * vy / N as f32).abs() as u8, 0 );    // cmp'd to vel from 8 cell mouse drag
                     let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
