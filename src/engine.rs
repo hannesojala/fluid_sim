@@ -11,8 +11,7 @@ pub struct Engine {
     event_pump: sdl2::EventPump,
     time: Instant,
     dt_s: f32,
-    dye : Vec<f32>,
-    vel : Vec<(f32, f32)>,
+    fluid: Fluid,
     draw_mode: i32
 }
 
@@ -32,8 +31,7 @@ impl Engine {
             event_pump: sdl_context.event_pump().unwrap(),
             time: Instant::now(),
             dt_s: 0.0,
-            dye:  vec![0.0; SIZE],
-            vel:  vec![(0.0,0.0); SIZE],
+            fluid: Fluid::new(),
             draw_mode: 0
         }
     }
@@ -44,33 +42,8 @@ impl Engine {
         let delta_time = self.time.elapsed();
         self.time = Instant::now();
         if !self.paused {
-            self.dt_s = delta_time.as_secs_f32();
-
-            // let mass_before: f32 = self.dye.iter().sum(); // see below
-
-            /* DIFFUSE VELOCITY FIELD*/
-            self.vel = solve_vfield(&self.vel, self.dt_s * VISC * ((N - 2)*(N - 2)) as f32);
-            // remove div
-            self.vel =  enforce_div_eq_0(&self.vel);
-
-            /* ADVECT VELOCITY FIELD*/
-            self.vel = advect_vfield(&self.vel, self.dt_s);
-            // remove div
-            self.vel =  enforce_div_eq_0(&self.vel);
-
-            /* DIFFUSE DYE FIELD*/
-            self.dye = solve_sfield(&self.dye, self.dt_s * DIFF * ((N - 2)*(N - 2)) as f32);
-
-            /* ADVECT DYE FIELD */
-            self.dye = advect_sfield(&self.dye, &self.vel, self.dt_s);
-
-
-            // let mass_after: f32 = self.dye.iter().sum();
-            // fails sometimes due to advection
-            // works with diffusion
-            // todo: enforce mass conservation of dye during advection
-            // assert!((mass_before - mass_after).abs() <= 0.01 * mass_before); // Make sure dye mass is conserved
-
+            self.dt_s = delta_time.as_secs_f32(); // needs to be set for some ui funcs
+            self.fluid.update(self.dt_s);
         }
         // If frame was faster than max framerate, sleep a lil
         static TARGET_DT : Duration = Duration::from_millis(1000 / MAX_FPS);
@@ -100,7 +73,7 @@ impl Engine {
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
-        let radius: i32 = 7;
+        let radius: i32 = 15;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(N-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(N-2));
         
@@ -111,11 +84,11 @@ impl Engine {
                 if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 {
                     // Add dye or velocity
                     if ms.left() {
-                        self.vel[i!(x, y)].0 += self.dt_s * (rx * N) as f32;
-                        self.vel[i!(x, y)].1 += self.dt_s * (ry * N) as f32;
+                        self.fluid.add_vel(x, y, self.dt_s * (rx * N) as f32, 
+                                                 self.dt_s * (ry * N) as f32);
                     }
                     if ms.right() {
-                        self.dye[i!(x, y)] += self.dt_s * 16.0; // should make dt based to account for frame rate and pause
+                        self.fluid.add_dye(x, y, self.dt_s * 8.0);
                     }
                 }
             }
@@ -130,7 +103,7 @@ impl Engine {
         for y in 1..N-1 {
             for x in 1..N-1 {
                 // Draw dye field density
-                let dye_amt = self.dye[i!(x,y)];
+                let dye_amt = self.fluid.dye[i!(x,y)];
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
                     let color = Color::RGB(0, 0, (dye_amt.sqrt()*255.) as u8); // sqrt() because of percieved brightness (gamma)
                     let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
@@ -138,7 +111,7 @@ impl Engine {
                     self.canvas.fill_rect(rect).unwrap();
                 }
                 // Draw vector field component intensity
-                let (vx, vy) = self.vel[i!(x,y)];
+                let (vx, vy) = self.fluid.vel[i!(x,y)];
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
                     let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8, // abs() for either direction
                                             (255.0 * vy / N as f32).abs() as u8, 0 );
