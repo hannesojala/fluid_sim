@@ -38,13 +38,15 @@ impl Engine {
         }
     }
 
+    // Updates the simulation state
     pub fn update(&mut self) {
+        // Get time elapsed for timestep
         let delta_time = self.time.elapsed();
         self.time = Instant::now();
         if !self.paused {
             self.dt_s = delta_time.as_secs_f32();
 
-            // let mass_before: f32 = self.dye.iter().sum();
+            // let mass_before: f32 = self.dye.iter().sum(); // see below
 
             /* DIFFUSE VELOCITY FIELD*/
             self.vel = solve_vfield(&self.vel, self.dt_s * VISC * ((N - 2)*(N - 2)) as f32);
@@ -70,11 +72,14 @@ impl Engine {
             // assert!((mass_before - mass_after).abs() <= 0.01 * mass_before); // Make sure dye mass is conserved
 
         }
+        // If frame was faster than max framerate, sleep a lil
         static TARGET_DT : Duration = Duration::from_millis(1000 / MAX_FPS);
         if delta_time < TARGET_DT { sleep(TARGET_DT - delta_time); }
     }
 
+    // Handles user input
     pub fn events(&mut self) {
+        // Pump events in queue
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit {..} => { self.running = false; },
@@ -88,21 +93,26 @@ impl Engine {
             }
         }
 
+        // Get both relative and global mouse coords
         let ms = self.event_pump.mouse_state();
         let (mx, my) = (ms.x() / RATIO , ms.y() / RATIO);
         let rms = self.event_pump.relative_mouse_state();
         let (rx, ry) = (rms.x(), rms.y());
 
+        // Get box for draw tool radius
         let radius: i32 = 7;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(N-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(N-2));
         
-        for y in y0..y1 { // restrict to bounds
+        // For all in draw tool box
+        for y in y0..y1 {
             for x in x0..x1 {
-                if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 { // radius
+                // If dist <= radius
+                if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 {
+                    // Add dye or velocity
                     if ms.left() {
-                        self.vel[i!(x, y)].0 += self.dt_s * (rx * N / RATIO) as f32; // Divide by ratio to get
-                        self.vel[i!(x, y)].1 += self.dt_s * (ry * N / RATIO) as f32; // cells traversed by mouse
+                        self.vel[i!(x, y)].0 += self.dt_s * (rx * N) as f32;
+                        self.vel[i!(x, y)].1 += self.dt_s * (ry * N) as f32;
                     }
                     if ms.right() {
                         self.dye[i!(x, y)] += self.dt_s * 16.0; // should make dt based to account for frame rate and pause
@@ -112,22 +122,26 @@ impl Engine {
         }
     }
 
+    // Renders either vector field or dye field inefficiently
+    // TODO: Dont do this.
     pub fn render(&mut self) {
         self.canvas.set_draw_color(Color::BLACK);
         self.canvas.clear();
-        for y in 0..N {
-            for x in 0..N {
+        for y in 1..N-1 {
+            for x in 1..N-1 {
+                // Draw dye field density
                 let dye_amt = self.dye[i!(x,y)];
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
-                    let color = Color::RGB(0, (dye_amt.sqrt()*255.) as u8, 0); // dont need dye_amt.sqrt() if add more dye
+                    let color = Color::RGB(0, 0, (dye_amt.sqrt()*255.) as u8); // sqrt() because of percieved brightness (gamma)
                     let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
                 }
+                // Draw vector field component intensity
                 let (vx, vy) = self.vel[i!(x,y)];
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
-                    let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8,         // * 8 / N to get ratio of vel
-                                            (255.0 * vy / N as f32).abs() as u8, 0 );    // cmp'd to vel from 8 cell mouse drag
+                    let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8, // abs() for either direction
+                                            (255.0 * vy / N as f32).abs() as u8, 0 );
                     let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();

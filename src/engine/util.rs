@@ -4,9 +4,11 @@ pub const SIZE: usize = (N*N) as usize;
 pub const RATIO: i32 = 2;
 pub const MAX_FPS: u64 = 300;
 
-pub const DIFF: f32 = 1e-6; // What should these be???
+// Fluid and dye parameters
+pub const DIFF: f32 = 1e-6;
 pub const VISC: f32 = 1e-6;
 
+// Quality related
 const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
 
 macro_rules! i(
@@ -19,13 +21,13 @@ macro_rules! i(
 pub fn lerp(v1: f32, v2: f32, k: f32) -> f32 {
     v1 + k * (v2 - v1)
 }
-
+// This is lazy
 pub fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 { 
     lerp(lerp(v1, v2, k1), lerp(v3, v4, k1), k2)
 }
 
-// TODO: Generalize solve_field fns onto any dimension fields
-// Solves a scalar field as a linear system with coeffs a and b
+// TODO: Generalize solve_field fns onto any dimension fields, not specific to diffusion
+// Solves a scalar field as a linear system
 pub fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
     let f = field;
     let mut sol = vec![0.0; SIZE];
@@ -34,7 +36,6 @@ pub fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
             for x in 1..N-1 {
                 // Keep track of which cells are actually diffusable into
                 // to prevent mass loss at walls. 
-                // does bound_sfield replace this?
                 let (mut n, mut s, mut e, mut w) 
                     = (1.,1.,1.,1.);
                     if x == 1 {  w = 0.0 }
@@ -50,21 +51,17 @@ pub fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
                     )) / (1.0 + (n+s+e+w) * a);
             }
         }
-        
+        bound_sfield(&mut sol); // TODO: see how this works with my method above
     }
     sol
 }
-
+// Solves a vector field as a linear system
 pub fn solve_vfield(field: &Vec<(f32,f32)>, a: f32) -> Vec<(f32,f32)> {
     let f = field;
     let mut sol = vec![(0.0, 0.0); SIZE]; // ewww
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
         for y in 1..N-1 {
             for x in 1..N-1 {
-                // Should I prevent velocity loss at walls?
-                // Other implementations set the boundary velocity to the edge velocity
-                // with reversed normal component
-                // Only that component erased, maybe?
                 sol[i!(x,y)].0 = 
                     (f[i!(x,y)].0 + a * (
                         sol[i!(x,y+1)].0 + 
@@ -86,6 +83,9 @@ pub fn solve_vfield(field: &Vec<(f32,f32)>, a: f32) -> Vec<(f32,f32)> {
     sol
 }
 
+// removes divergence from field, returns new field without divergence
+// because helmholz theorem, all vector fields are a 
+// sum of one with zero div and another with zero curl
 pub fn enforce_div_eq_0(field: &Vec<(f32,f32)>) -> Vec<(f32,f32)> {
     let mut new = vec![(0.0, 0.0); SIZE];
     let mut div = vec![0.0; SIZE];
