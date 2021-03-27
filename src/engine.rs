@@ -6,6 +6,10 @@ use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
 const VISC: f32 = 1e-9;
 const DIFF: f32 = 1e-5;
 
+const SCALE: i32 = 2;
+const SIZE: i32 = 256;
+const MAX_FPS: u64 = 60;
+
 pub struct Engine {
     pub running: bool,
     paused: bool,
@@ -21,7 +25,7 @@ impl Engine {
     pub fn init() -> Engine {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
-        let win_size = (N * RATIO) as u32;
+        let win_size = (SIZE * SCALE) as u32;
         let window = video_subsystem.window("fluid", win_size, win_size)
             .position_centered()
             .build().unwrap();
@@ -33,7 +37,7 @@ impl Engine {
             event_pump: sdl_context.event_pump().unwrap(),
             time: Instant::now(),
             dt_s: 0.0,
-            fluid: Fluid::new(VISC, DIFF),
+            fluid: Fluid::new(VISC, DIFF, SIZE),
             draw_mode: 0
         }
     }
@@ -70,14 +74,14 @@ impl Engine {
 
         // Get both relative and global mouse coords
         let ms = self.event_pump.mouse_state();
-        let (mx, my) = (ms.x() / RATIO , ms.y() / RATIO);
+        let (mx, my) = (ms.x() / SCALE , ms.y() / SCALE);
         let rms = self.event_pump.relative_mouse_state();
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
         let radius: i32 = 15;
-        let (y0,y1) = ((my-radius).max(1), (my+radius).min(N-2));
-        let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(N-2));
+        let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
+        let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
         // For all in draw tool box
         for y in y0..y1 {
@@ -86,8 +90,8 @@ impl Engine {
                 if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 {
                     // Add dye or velocity
                     if ms.left() {
-                        self.fluid.add_vel(x, y, self.dt_s * (rx * N) as f32, 
-                                                 self.dt_s * (ry * N) as f32);
+                        self.fluid.add_vel(x, y, self.dt_s * (rx * SIZE) as f32, 
+                                                 self.dt_s * (ry * SIZE) as f32);
                     }
                     if ms.right() {
                         self.fluid.add_dye(x, y, self.dt_s * 8.0);
@@ -102,22 +106,22 @@ impl Engine {
     pub fn render(&mut self) {
         self.canvas.set_draw_color(Color::BLACK);
         self.canvas.clear();
-        for y in 1..N-1 {
-            for x in 1..N-1 {
+        for y in 1..SIZE-1 {
+            for x in 1..SIZE-1 {
                 // Draw dye field density
                 let dye_amt = self.fluid.dye(x,y);
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
                     let color = Color::RGB(0, 0, (dye_amt.sqrt()*255.) as u8); // sqrt() because of percieved brightness (gamma)
-                    let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
+                    let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
                 }
                 // Draw vector field component intensity
                 let (vx, vy) = self.fluid.vel(x,y);
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
-                    let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8, // abs() for either direction
-                                            (255.0 * vy / N as f32).abs() as u8, 0 );
-                    let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
+                    let color = Color::RGB( (255.0 * vx / SIZE as f32).abs() as u8, // abs() for either direction
+                                            (255.0 * vy / SIZE as f32).abs() as u8, 0 );
+                    let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
                 }
