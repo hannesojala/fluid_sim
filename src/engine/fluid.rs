@@ -4,10 +4,6 @@ pub const SIZE: usize = (N*N) as usize;
 pub const RATIO: i32 = 2;
 pub const MAX_FPS: u64 = 60;
 
-// Fluid and dye parameters
-pub const DIFF: f32 = 1e-5;
-pub const VISC: f32 = 1e-9;
-
 // Quality related, 5 for low, 10-15 for medium, 20 for high
 const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
 
@@ -17,8 +13,7 @@ macro_rules! i(
     )
 );
 
-fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velocity transfer to other cmp
-    // Walls, unchecked
+fn bound_vfield(f: &mut Vec<(f32,f32)>) {
     for y in 1..N-1 {
         f[i!(0,y)].0 = -f[i!(1,y)].0;
         f[i!(N-1,y)].0 = -f[i!(N-2,y)].0;
@@ -27,7 +22,6 @@ fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velocity
         f[i!(x,0)].1 = -f[i!(x,1)].1;
         f[i!(x,N-1)].1 = -f[i!(x,N-2)].1;
     }
-    // Corners, unchecked
     f[i!(0, 0)].0 = (f[i!(0, 1)].0 + f[i!(1, 0)].0) / 2.0;
     f[i!(0, 0)].1 = (f[i!(0, 1)].1 + f[i!(1, 0)].1) / 2.0;
 
@@ -42,7 +36,6 @@ fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velocity
 }
 
 fn bound_sfield(f: &mut Vec<f32>) {
-    // Walls, unchecked
     for y in 1..N-1 {
         f[i!(0,y)] = -f[i!(1,y)];
         f[i!(N-1,y)] = -f[i!(N-2,y)];
@@ -51,7 +44,6 @@ fn bound_sfield(f: &mut Vec<f32>) {
         f[i!(x,0)] = -f[i!(x,1)];
         f[i!(x,N-1)] = -f[i!(x,N-2)];
     }
-    // Corners, unchecked
     f[i!(0, 0)] = (f[i!(0, 1)] + f[i!(1, 0)]) / 2.0;
 
     f[i!(0, N-1)] = (f[i!(0, N-2)] + f[i!(1, N-1)]) / 2.0;
@@ -203,13 +195,15 @@ fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32) -> Vec<f32
 }
 
 pub struct Fluid {
-    pub vel: Vec<(f32,f32) >,
-    pub dye: Vec<f32>
+    pub visc: f32, pub diff: f32,
+    vel: Vec<(f32,f32) >,
+    dye: Vec<f32>
 }
 
 impl Fluid {
-    pub fn new() -> Fluid {
+    pub fn new(visc: f32, diff: f32) -> Fluid {
         Fluid {
+            visc, diff,
             vel:  vec![(0.0,0.0); SIZE],
             dye:  vec![0.0; SIZE],
         }
@@ -217,13 +211,13 @@ impl Fluid {
 
     pub fn update(&mut self, dt_s: f32) {
         // let mass_before: f32 = self.dye.iter().sum(); // see below
-        self.vel = solve_vfield(&self.vel, dt_s * VISC * ((N - 2)*(N - 2)) as f32);
+        self.vel = solve_vfield(&self.vel, dt_s * self.visc * ((N - 2)*(N - 2)) as f32);
         self.vel =  enforce_div_eq_0(&self.vel);
 
         self.vel = advect_vfield(&self.vel, dt_s);
         self.vel =  enforce_div_eq_0(&self.vel);
 
-        self.dye = solve_sfield(&self.dye, dt_s * DIFF * ((N - 2)*(N - 2)) as f32);
+        self.dye = solve_sfield(&self.dye, dt_s * self.diff * ((N - 2)*(N - 2)) as f32);
         self.dye = advect_sfield(&self.dye, &self.vel, dt_s);
         // let mass_after: f32 = self.dye.iter().sum();
         // fails sometimes due to advection
@@ -248,5 +242,13 @@ impl Fluid {
     pub fn set_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
         self.vel[i!(x, y)].0 = vx;
         self.vel[i!(x, y)].1 = vy;
+    }
+
+    pub fn dye(&mut self, x: i32, y: i32) -> f32 {
+        self.dye[i!(x,y)]
+    }
+
+    pub fn vel(&mut self, x: i32, y: i32) -> (f32,f32) {
+        self.vel[i!(x,y)]
     }
 }

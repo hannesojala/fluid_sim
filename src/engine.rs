@@ -1,8 +1,10 @@
-#[macro_use]
-pub mod util;
-use util::{*};
+pub mod fluid;
+use fluid::{*};
 use std::{ thread::sleep, time::{Duration, Instant} };
 use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
+
+const VISC: f32 = 1e-9;
+const DIFF: f32 = 1e-5;
 
 pub struct Engine {
     pub running: bool,
@@ -31,7 +33,7 @@ impl Engine {
             event_pump: sdl_context.event_pump().unwrap(),
             time: Instant::now(),
             dt_s: 0.0,
-            fluid: Fluid::new(),
+            fluid: Fluid::new(VISC, DIFF),
             draw_mode: 0
         }
     }
@@ -103,7 +105,7 @@ impl Engine {
         for y in 1..N-1 {
             for x in 1..N-1 {
                 // Draw dye field density
-                let dye_amt = self.fluid.dye[i!(x,y)];
+                let dye_amt = self.fluid.dye(x,y);
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
                     let color = Color::RGB(0, 0, (dye_amt.sqrt()*255.) as u8); // sqrt() because of percieved brightness (gamma)
                     let rect = Rect::new(RATIO * x, RATIO * y, RATIO as u32, RATIO as u32);
@@ -111,7 +113,7 @@ impl Engine {
                     self.canvas.fill_rect(rect).unwrap();
                 }
                 // Draw vector field component intensity
-                let (vx, vy) = self.fluid.vel[i!(x,y)];
+                let (vx, vy) = self.fluid.vel(x,y);
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
                     let color = Color::RGB( (255.0 * vx / N as f32).abs() as u8, // abs() for either direction
                                             (255.0 * vy / N as f32).abs() as u8, 0 );
