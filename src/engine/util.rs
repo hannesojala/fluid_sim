@@ -17,7 +17,7 @@ macro_rules! i(
     )
 );
 
-pub fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velocity transfer to other cmp
+fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velocity transfer to other cmp
     // Walls, unchecked
     for y in 1..N-1 {
         f[i!(0,y)].0 = -f[i!(1,y)].0;
@@ -41,7 +41,7 @@ pub fn bound_vfield(f: &mut Vec<(f32,f32)>) { // todo: maybe make disipated velo
     f[i!(N-1, N-1)].1 = (f[i!(N-2, N-1)].1 + f[i!(N-1, N-2)].1) / 2.0;
 }
 
-pub fn bound_sfield(f: &mut Vec<f32>) {
+fn bound_sfield(f: &mut Vec<f32>) {
     // Walls, unchecked
     for y in 1..N-1 {
         f[i!(0,y)] = -f[i!(1,y)];
@@ -62,17 +62,17 @@ pub fn bound_sfield(f: &mut Vec<f32>) {
 }
 
 // Interpolations
-pub fn lerp(v1: f32, v2: f32, k: f32) -> f32 {
+fn lerp(v1: f32, v2: f32, k: f32) -> f32 {
     v1 + k * (v2 - v1)
 }
 // This is lazy
-pub fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 { 
+fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 { 
     lerp(lerp(v1, v2, k1), lerp(v3, v4, k1), k2)
 }
 
 // TODO: Generalize solve_field fns onto any dimension fields, not specific to diffusion
 // Solves a scalar field as a linear system
-pub fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
+fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
     let f = field;
     let mut sol = vec![0.0; SIZE];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
@@ -100,7 +100,7 @@ pub fn solve_sfield(field: &Vec<f32>, a: f32) -> Vec<f32> {
     sol
 }
 // Solves a vector field as a linear system
-pub fn solve_vfield(field: &Vec<(f32,f32)>, a: f32) -> Vec<(f32,f32)> {
+fn solve_vfield(field: &Vec<(f32,f32)>, a: f32) -> Vec<(f32,f32)> {
     let f = field;
     let mut sol = vec![(0.0, 0.0); SIZE]; // ewww
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
@@ -130,7 +130,7 @@ pub fn solve_vfield(field: &Vec<(f32,f32)>, a: f32) -> Vec<(f32,f32)> {
 // removes divergence from field, returns new field without divergence
 // because helmholz theorem, all vector fields are a 
 // sum of one with zero div and another with zero curl
-pub fn enforce_div_eq_0(field: &Vec<(f32,f32)>) -> Vec<(f32,f32)> {
+fn enforce_div_eq_0(field: &Vec<(f32,f32)>) -> Vec<(f32,f32)> {
     let mut new = vec![(0.0, 0.0); SIZE];
     let mut div = vec![0.0; SIZE];
     let mut p = vec![0.0; SIZE];
@@ -160,7 +160,7 @@ pub fn enforce_div_eq_0(field: &Vec<(f32,f32)>) -> Vec<(f32,f32)> {
 }
 
 // advects vector field along itself
-pub fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32) -> Vec<(f32,f32)> {
+fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32) -> Vec<(f32,f32)> {
     let mut new = vec![(0.0,0.0); SIZE];
     for y in 1..N-1 {
         for x in 1..N-1 {
@@ -182,7 +182,7 @@ pub fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32) -> Vec<(f32,f32)> {
 }
 
 // advects a scalar field along a vector field
-pub fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32) -> Vec<f32> {
+fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32) -> Vec<f32> {
     let mut new = vec![0.0; SIZE];
     for y in 1..N-1 {
         for x in 1..N-1 {
@@ -203,7 +203,7 @@ pub fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32) -> Vec
 }
 
 pub struct Fluid {
-    pub vel: Vec<(f32,f32)>,
+    pub vel: Vec<(f32,f32) >,
     pub dye: Vec<f32>
 }
 
