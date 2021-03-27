@@ -2,7 +2,7 @@
 //pub const SIZE: usize = (N*N) as usize;
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 20;
 
 macro_rules! i(
     ($n:expr, $x:expr, $y:expr) => (
@@ -18,7 +18,7 @@ fn bound_vfield(f: &mut Vec<(f32,f32)>, N: i32) {
     for x in 1..N-1 {
         f[i!(N, x,0)].1 = -f[i!(N, x,1)].1;
         f[i!(N, x,N-1)].1 = -f[i!(N, x,N-2)].1;
-    }
+    } // corners maybe not that necessary
     f[i!(N, 0, 0)].0 = (f[i!(N, 0, 1)].0 + f[i!(N, 1, 0)].0) / 2.0;
     f[i!(N, 0, 0)].1 = (f[i!(N, 0, 1)].1 + f[i!(N, 1, 0)].1) / 2.0;
 
@@ -34,12 +34,12 @@ fn bound_vfield(f: &mut Vec<(f32,f32)>, N: i32) {
 
 fn bound_sfield(f: &mut Vec<f32>, N: i32) {
     for y in 1..N-1 {
-        f[i!(N, 0,y)] = -f[i!(N, 1,y)];
-        f[i!(N, N-1,y)] = -f[i!(N, N-2,y)];
+        f[i!(N, 0,y)] = f[i!(N, 1,y)];
+        f[i!(N, N-1,y)] = f[i!(N, N-2,y)];
     }
     for x in 1..N-1 {
-        f[i!(N, x,0)] = -f[i!(N, x,1)];
-        f[i!(N, x,N-1)] = -f[i!(N, x,N-2)];
+        f[i!(N, x,0)] = f[i!(N, x,1)];
+        f[i!(N, x,N-1)] = f[i!(N, x,N-2)];
     }
     f[i!(N, 0, 0)] = (f[i!(N, 0, 1)] + f[i!(N, 1, 0)]) / 2.0;
 
@@ -71,7 +71,7 @@ fn solve_sfield(field: &Vec<f32>, a: f32, N: i32) -> Vec<f32> {
                 // to prevent mass loss at walls. 
                 let (mut n, mut s, mut e, mut w) 
                     = (1.,1.,1.,1.);
-                    if x == 1 {  w = 0.0 }
+                    if x == 1 {  w = 0.0 }    // actually no cause its probably wrong
                     if y == 1 {  n = 0.0 }
                     if x == N-2 {  e = 0.0 }
                     if y == N-2 {  s = 0.0 }
