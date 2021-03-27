@@ -10,81 +10,48 @@ macro_rules! i(
     )
 );
 
-fn bound_vfield(f: &mut Vec<(f32,f32)>, N: i32) {
-    for y in 1..N-1 {
-        f[i!(N, 0,y)].0 = -f[i!(N, 1,y)].0;
-        f[i!(N, N-1,y)].0 = -f[i!(N, N-2,y)].0;
+fn bound_vel(field: &mut Vec<(f32,f32)>, N: i32) {
+    for xy in 1..N-1 {
+        field[i!(N,   0,xy)].0 = -field[i!(N, 1,  xy)].0;
+        field[i!(N, N-1,xy)].0 = -field[i!(N, N-2,xy)].0;
+        field[i!(N, xy,  0)].1 = -field[i!(N, xy,  1)].1;
+        field[i!(N, xy,N-1)].1 = -field[i!(N, xy,N-2)].1;
     }
-    for x in 1..N-1 {
-        f[i!(N, x,0)].1 = -f[i!(N, x,1)].1;
-        f[i!(N, x,N-1)].1 = -f[i!(N, x,N-2)].1;
-    } // corners maybe not that necessary
-    f[i!(N, 0, 0)].0 = (f[i!(N, 0, 1)].0 + f[i!(N, 1, 0)].0) / 2.0;
-    f[i!(N, 0, 0)].1 = (f[i!(N, 0, 1)].1 + f[i!(N, 1, 0)].1) / 2.0;
-
-    f[i!(N, 0, N-1)].0 = (f[i!(N, 0, N-2)].0 + f[i!(N, 1, N-1)].0) / 2.0;
-    f[i!(N, 0, N-1)].1 = (f[i!(N, 0, N-2)].1 + f[i!(N, 1, N-1)].1) / 2.0;
-
-    f[i!(N, N-1, 0)].0 = (f[i!(N, N-1, 1)].0 + f[i!(N, N-2, 0)].0) / 2.0;
-    f[i!(N, N-1, 0)].1 = (f[i!(N, N-1, 1)].1 + f[i!(N, N-2, 0)].1) / 2.0;
-
-    f[i!(N, N-1, N-1)].0 = (f[i!(N, N-2, N-1)].0 + f[i!(N, N-1, N-2)].0) / 2.0;
-    f[i!(N, N-1, N-1)].1 = (f[i!(N, N-2, N-1)].1 + f[i!(N, N-1, N-2)].1) / 2.0;
 }
 
-fn bound_sfield(f: &mut Vec<f32>, N: i32) {
-    for y in 1..N-1 {
-        f[i!(N, 0,y)] = f[i!(N, 1,y)];
-        f[i!(N, N-1,y)] = f[i!(N, N-2,y)];
+fn bound_scalar(field: &mut Vec<f32>, N: i32) {
+    for xy in 1..N-1 {
+        field[i!(N,   0,xy)] = field[i!(N,   1,xy)];
+        field[i!(N, N-1,xy)] = field[i!(N, N-2,xy)];
+        field[i!(N, xy,  0)] = field[i!(N, xy,  1)];
+        field[i!(N, xy,N-1)] = field[i!(N, xy,N-2)];
     }
-    for x in 1..N-1 {
-        f[i!(N, x,0)] = f[i!(N, x,1)];
-        f[i!(N, x,N-1)] = f[i!(N, x,N-2)];
-    }
-    f[i!(N, 0, 0)] = (f[i!(N, 0, 1)] + f[i!(N, 1, 0)]) / 2.0;
-
-    f[i!(N, 0, N-1)] = (f[i!(N, 0, N-2)] + f[i!(N, 1, N-1)]) / 2.0;
-
-    f[i!(N, N-1, 0)] = (f[i!(N, N-1, 1)] + f[i!(N, N-2, 0)]) / 2.0;
-
-    f[i!(N, N-1, N-1)] = (f[i!(N, N-2, N-1)] + f[i!(N, N-1, N-2)]) / 2.0;
 }
 
 // Interpolations
-fn lerp(v1: f32, v2: f32, k: f32) -> f32 {
-    v1 + k * (v2 - v1)
-}
-// This is lazy
+fn lerp(v1: f32, v2: f32, k: f32) -> f32 { v1 + k * (v2 - v1) }
+
 fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 { 
     lerp(lerp(v1, v2, k1), lerp(v3, v4, k1), k2)
 }
 
 // TODO: Generalize solve_field fns onto any dimension fields, not specific to diffusion
-// Solves a scalar field as a linear system
 fn solve_sfield(field: &Vec<f32>, a: f32, N: i32) -> Vec<f32> {
     let f = field;
     let mut sol = vec![0.0; field.len()];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
         for y in 1..N-1 {
             for x in 1..N-1 {
-                // Keep track of which cells are actually diffusable into
-                // to prevent mass loss at walls. 
-                let (mut n, mut s, mut e, mut w) 
-                    = (1.,1.,1.,1.);
-                    if x == 1 {  w = 0.0 }    // actually no cause its probably wrong
-                    if y == 1 {  n = 0.0 }
-                    if x == N-2 {  e = 0.0 }
-                    if y == N-2 {  s = 0.0 }
                 sol[i!(N, x,y)] = 
                     (f[i!(N, x,y)] + a * (
-                        s * sol[i!(N, x,y+1)] + 
-                        n * sol[i!(N, x,y-1)] + 
-                        e * sol[i!(N, x+1,y)] + 
-                        w * sol[i!(N, x-1,y)]
-                    )) / (1.0 + (n+s+e+w) * a);
+                        sol[i!(N, x,y+1)] + 
+                        sol[i!(N, x,y-1)] + 
+                        sol[i!(N, x+1,y)] + 
+                        sol[i!(N, x-1,y)]
+                    )) / (1.0 + 4.0 * a);
             }
         }
-        bound_sfield(&mut sol, N); // TODO: see how this works with my method above
+        bound_scalar(&mut sol, N); // TODO: see how this works with my method above
     }
     sol
 }
@@ -111,7 +78,7 @@ fn solve_vfield(field: &Vec<(f32,f32)>, a: f32, N: i32) -> Vec<(f32,f32)> {
                     )) / (1.0 + 4.0 * a);
             }
         }
-        bound_vfield(&mut sol, N); // prevents diffusion into boundary
+        bound_vel(&mut sol, N); // prevents diffusion into boundary
     }
     sol
 }
@@ -129,14 +96,14 @@ fn enforce_div_eq_0(field: &Vec<(f32,f32)>, N: i32) -> Vec<(f32,f32)> {
             div[i!(N, x,y)] = -0.5 * h * (field[i!(N, x+1,y)].0 - field[i!(N, x-1,y)].0 + field[i!(N, x,y+1)].1 - field[i!(N, x,y-1)].1);
         }
     }
-    bound_sfield(&mut div, N);
+    bound_scalar(&mut div, N);
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
         for y in 1..N-1 {
             for x in 1..N-1 {
                 p[i!(N, x,y)] = (div[i!(N, x,y)]+p[i!(N, x-1,y)]+p[i!(N, x+1,y)]+p[i!(N, x,y-1)]+p[i!(N, x,y+1)]) / 4.0;
             }
         }
-        bound_sfield(&mut p, N);
+        bound_scalar(&mut p, N);
     }
     for y in 1..N-1 {
         for x in 1..N-1 {
@@ -144,7 +111,7 @@ fn enforce_div_eq_0(field: &Vec<(f32,f32)>, N: i32) -> Vec<(f32,f32)> {
             new[i!(N, x,y)].1 = field[i!(N, x,y)].1 - (0.5*(p[i!(N, x,y+1)] - p[i!(N, x,y-1)]) / h);
         }
     }
-    bound_vfield(&mut new, N);
+    bound_vel(&mut new, N);
     new
 }
 
@@ -166,7 +133,7 @@ fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<(f32,f32)> {
                              blerp(v0y, v1y, v2y, v3y, x0.fract(), y0.fract()));
         }
     }
-    bound_vfield(&mut new, N);
+    bound_vel(&mut new, N);
     new
 }
 
@@ -187,13 +154,14 @@ fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32, N: i32) ->
             new[i!(N, x ,y)] = blerp(s0, s1, s2, s3, x0.fract(), y0.fract());
         }
     }
-    bound_sfield(&mut new, N);
+    bound_scalar(&mut new, N);
     new
 }
 
 pub struct Fluid {
-    pub visc: f32, pub diff: f32,
-    size: i32, flat_size: usize,
+    pub visc: f32,
+    pub diff: f32,
+    size: i32,
     vel: Vec<(f32,f32) >,
     dye: Vec<f32>
 }
@@ -202,7 +170,7 @@ impl Fluid {
     pub fn new(visc: f32, diff: f32, size: i32) -> Fluid {
         let flat_size = ((size+2)*(size+2)) as usize;
         Fluid {
-            visc, diff, size, flat_size,
+            visc, diff, size,
             vel:  vec![(0.0,0.0); flat_size],
             dye:  vec![0.0; flat_size],
         }
