@@ -36,7 +36,7 @@ fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 {
 }
 
 // TODO: Generalize solve_field fns onto any dimension fields, not specific to diffusion
-fn solve_sfield(field: &Vec<f32>, a: f32, N: i32) -> Vec<f32> {
+fn diffuse_dye(field: &Vec<f32>, a: f32, N: i32) -> Vec<f32> {
     let f = field;
     let mut sol = vec![0.0; field.len()];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
@@ -56,7 +56,7 @@ fn solve_sfield(field: &Vec<f32>, a: f32, N: i32) -> Vec<f32> {
     sol
 }
 // Solves a vector field as a linear system
-fn solve_vfield(field: &Vec<(f32,f32)>, a: f32, N: i32) -> Vec<(f32,f32)> {
+fn diffuse_vel(field: &Vec<(f32,f32)>, a: f32, N: i32) -> Vec<(f32,f32)> {
     let f = field;
     let mut sol = vec![(0.0, 0.0); field.len()]; // ewww
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
@@ -86,14 +86,13 @@ fn solve_vfield(field: &Vec<(f32,f32)>, a: f32, N: i32) -> Vec<(f32,f32)> {
 // removes divergence from field, returns new field without divergence
 // because helmholz theorem, all vector fields are a 
 // sum of one with zero div and another with zero curl
-fn enforce_div_eq_0(field: &Vec<(f32,f32)>, N: i32) -> Vec<(f32,f32)> {
-    let mut new = vec![(0.0, 0.0); field.len()];
+// Note: maybe remove scaling to size ( / N, * N as f32) i think its the same?
+fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
     let mut div = vec![0.0; field.len()];
     let mut p = vec![0.0; field.len()];
-    let h = 1.0 / N as f32;
     for y in 1..N-1 {
         for x in 1..N-1 {
-            div[i!(N, x,y)] = -0.5 * h * (field[i!(N, x+1,y)].0 - field[i!(N, x-1,y)].0 + field[i!(N, x,y+1)].1 - field[i!(N, x,y-1)].1);
+            div[i!(N, x,y)] = -0.5 * (field[i!(N, x+1,y)].0 - field[i!(N, x-1,y)].0 + field[i!(N, x,y+1)].1 - field[i!(N, x,y-1)].1) / N as f32;
         }
     }
     bound_scalar(&mut div, N);
@@ -107,16 +106,15 @@ fn enforce_div_eq_0(field: &Vec<(f32,f32)>, N: i32) -> Vec<(f32,f32)> {
     }
     for y in 1..N-1 {
         for x in 1..N-1 {
-            new[i!(N, x,y)].0 = field[i!(N, x,y)].0 - (0.5*(p[i!(N, x+1,y)] - p[i!(N, x-1,y)]) / h);
-            new[i!(N, x,y)].1 = field[i!(N, x,y)].1 - (0.5*(p[i!(N, x,y+1)] - p[i!(N, x,y-1)]) / h);
+            field[i!(N, x,y)].0 -= 0.5 * (p[i!(N, x+1,y)] - p[i!(N, x-1,y)]) * N as f32;
+            field[i!(N, x,y)].1 -= 0.5 * (p[i!(N, x,y+1)] - p[i!(N, x,y-1)]) * N as f32;
         }
     }
-    bound_vel(&mut new, N);
-    new
+    bound_vel(field, N);
 }
 
 // advects vector field along itself
-fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<(f32,f32)> {
+fn advect_vel(field: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<(f32,f32)> {
     let mut new = vec![(0.0,0.0); field.len()];
     for y in 1..N-1 {
         for x in 1..N-1 {
@@ -138,7 +136,7 @@ fn advect_vfield(field: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<(f32,f32)> {
 }
 
 // advects a scalar field along a vector field
-fn advect_sfield(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<f32> {
+fn advect_dye(sfield: &Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32, N: i32) -> Vec<f32> {
     let mut new = vec![0.0; sfield.len()];
     for y in 1..N-1 {
         for x in 1..N-1 {
@@ -177,38 +175,23 @@ impl Fluid {
     }
 
     pub fn update(&mut self, dt_s: f32) {
-        // let mass_before: f32 = self.dye.iter().sum(); // see below
-        self.vel = solve_vfield(&self.vel, dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32, self.size);
-        self.vel =  enforce_div_eq_0(&self.vel, self.size);
+        self.vel = diffuse_vel(&self.vel, dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32, self.size);
+        remove_div(&mut self.vel, self.size);
 
-        self.vel = advect_vfield(&self.vel, dt_s, self.size);
-        self.vel =  enforce_div_eq_0(&self.vel, self.size);
+        self.vel = advect_vel(&self.vel, dt_s, self.size);
+        remove_div(&mut self.vel, self.size);
 
-        self.dye = solve_sfield(&self.dye, dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32, self.size);
-        self.dye = advect_sfield(&self.dye, &self.vel, dt_s, self.size);
-        // let mass_after: f32 = self.dye.iter().sum();
-        // fails sometimes due to advection
-        // works with diffusion
-        // todo: enforce mass conservation of dye during advection
-        // assert!((mass_before - mass_after).abs() <= 0.01 * mass_before); // Make sure dye mass is conserved
+        self.dye = diffuse_dye(&self.dye, dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32, self.size);
+        self.dye = advect_dye(&self.dye, &self.vel, dt_s, self.size);
     }
 
     pub fn add_dye(&mut self, x: i32, y: i32, amt: f32) {
         self.dye[i!(self.size, x, y)] += amt;
     }
 
-    pub fn set_dye(&mut self, x: i32, y: i32, amt: f32) {
-        self.dye[i!(self.size, x, y)] = amt;
-    }
-
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
         self.vel[i!(self.size, x, y)].0 += vx;
         self.vel[i!(self.size, x, y)].1 += vy;
-    }
-
-    pub fn set_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
-        self.vel[i!(self.size, x, y)].0 = vx;
-        self.vel[i!(self.size, x, y)].1 = vy;
     }
 
     pub fn dye(&mut self, x: i32, y: i32) -> f32 {
