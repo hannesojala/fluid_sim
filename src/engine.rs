@@ -46,7 +46,7 @@ impl Engine {
     pub fn update(&mut self) {
         // Get time elapsed for timestep
         let delta_time = self.time.elapsed();
-        println!("{}ms", delta_time.as_millis());
+        // println!("{}ms", delta_time.as_millis());
         self.time = Instant::now();
         if !self.paused {
             self.dt_s = delta_time.as_secs_f32(); // needs to be set for some ui funcs
