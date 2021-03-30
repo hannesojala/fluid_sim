@@ -7,8 +7,8 @@ const VISC: f32 = 1e-9;
 const DIFF: f32 = 1e-5;
 
 const SCALE: i32 = 2;
-const SIZE: i32 = 256;
-const MAX_FPS: u64 = 60;
+const SIZE: i32 = 500;
+const MAX_FPS: u64 = 144;
 
 pub struct Engine {
     pub running: bool,
@@ -46,7 +46,7 @@ impl Engine {
     pub fn update(&mut self) {
         // Get time elapsed for timestep
         let delta_time = self.time.elapsed();
-        // println!("{}ms", delta_time.as_millis());
+        println!("{}ms", delta_time.as_millis());
         self.time = Instant::now();
         if !self.paused {
             self.dt_s = delta_time.as_secs_f32(); // needs to be set for some ui funcs
@@ -80,7 +80,7 @@ impl Engine {
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
-        let radius: i32 = 15;
+        let radius: i32 = 7;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
@@ -95,7 +95,7 @@ impl Engine {
                                                  self.dt_s * (ry * SIZE) as f32);
                     }
                     if ms.right() {
-                        self.fluid.add_dye(x, y, self.dt_s * 8.0);
+                        self.fluid.add_dye(x, y, self.dt_s * 32.0);
                     }
                 }
             }

@@ -1,8 +1,11 @@
-//pub const N: i32 = 256; // *cries in refactor pain*
-//pub const SIZE: usize = (N*N) as usize;
+use std::thread;
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
 const GAUSS_SEIDEL_ITERATIONS: u32 = 20;
+// Main performance bottleneck is the solving of linear eqs 
+// for diffusion and divergence.
+
+// TODO: rewrite with iterators and use rayon to parallelize?
 
 macro_rules! i(
     ($n:expr, $x:expr, $y:expr) => (
@@ -39,14 +42,15 @@ fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 {
 fn diffuse_dye(field: &mut Vec<f32>, a: f32, N: i32) {
     let mut sol = vec![0.0; field.len()];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
+        let sol_0 = sol.clone(); // This clone actually makes it faster?
         for y in 1..N-1 {
             for x in 1..N-1 {
                 sol[i!(N, x,y)] = 
                     (field[i!(N, x,y)] + a * (
-                        sol[i!(N, x,y+1)] + 
-                        sol[i!(N, x,y-1)] + 
-                        sol[i!(N, x+1,y)] + 
-                        sol[i!(N, x-1,y)]
+                        sol_0[i!(N, x,y+1)] + 
+                        sol_0[i!(N, x,y-1)] + 
+                        sol_0[i!(N, x+1,y)] + 
+                        sol_0[i!(N, x-1,y)]
                     )) / (1.0 + 4.0 * a);
             }
         }
@@ -58,21 +62,22 @@ fn diffuse_dye(field: &mut Vec<f32>, a: f32, N: i32) {
 fn diffuse_vel(field: &mut Vec<(f32,f32)>, a: f32, N: i32) {
     let mut sol = vec![(0.0, 0.0); field.len()];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
+        let sol_0 = sol.clone(); // This clone actually makes it faster?
         for y in 1..N-1 {
             for x in 1..N-1 {
                 sol[i!(N, x,y)].0 = 
                     (field[i!(N, x,y)].0 + a * (
-                        sol[i!(N, x,y+1)].0 + 
-                        sol[i!(N, x,y-1)].0 + 
-                        sol[i!(N, x+1,y)].0 + 
-                        sol[i!(N, x-1,y)].0
+                        sol_0[i!(N, x,y+1)].0 + 
+                        sol_0[i!(N, x,y-1)].0 + 
+                        sol_0[i!(N, x+1,y)].0 + 
+                        sol_0[i!(N, x-1,y)].0
                     )) / (1.0 + 4.0 * a);
                 sol[i!(N, x,y)].1 = 
                     (field[i!(N, x,y)].1 + a * (
-                        sol[i!(N, x,y+1)].1 + 
-                        sol[i!(N, x,y-1)].1 + 
-                        sol[i!(N, x+1,y)].1 + 
-                        sol[i!(N, x-1,y)].1
+                        sol_0[i!(N, x,y+1)].1 + 
+                        sol_0[i!(N, x,y-1)].1 + 
+                        sol_0[i!(N, x+1,y)].1 + 
+                        sol_0[i!(N, x-1,y)].1
                     )) / (1.0 + 4.0 * a);
             }
         }
@@ -91,9 +96,10 @@ fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
     }
     bound_scalar(&mut div, N);
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
+        let p_0 = p.clone(); // This clone actually makes it faster?
         for y in 1..N-1 {
             for x in 1..N-1 {
-                p[i!(N, x,y)] = (div[i!(N, x,y)]+p[i!(N, x-1,y)]+p[i!(N, x+1,y)]+p[i!(N, x,y-1)]+p[i!(N, x,y+1)]) / 4.0;
+                p[i!(N, x,y)] = (div[i!(N, x,y)] + p_0[i!(N, x-1,y)] + p_0[i!(N, x+1,y)] + p_0[i!(N, x,y-1)] + p_0[i!(N, x,y+1)]) / 4.0;
             }
         }
         bound_scalar(&mut p, N);
