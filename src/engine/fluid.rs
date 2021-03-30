@@ -1,5 +1,5 @@
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
 // Main performance bottleneck is the solving of linear eqs 
 // for diffusion and divergence.
 

@@ -6,9 +6,9 @@ use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
 const VISC: f32 = 1e-9;
 const DIFF: f32 = 1e-5;
 
-const SCALE: i32 = 2;
-const SIZE: i32 = 400;
-const MAX_FPS: u64 = 144;
+const SCALE: i32 = 3;
+const SIZE: i32 = 256;
+const MAX_FPS: u64 = 60;
 
 pub struct Engine {
     pub running: bool,
@@ -80,7 +80,7 @@ impl Engine {
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
-        let radius: i32 = 11;
+        let radius: i32 = SIZE / 32;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
@@ -112,7 +112,7 @@ impl Engine {
                 // Draw dye field density
                 let dye_amt = self.fluid.dye(x,y);
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
-                    let color = Color::RGB(0, 0, (dye_amt.sqrt()*255.) as u8); // sqrt() because of percieved brightness (gamma)
+                    let color = Color::RGB(0, 0, (dye_amt*255.) as u8); // sqrt() because of percieved brightness (gamma)
                     let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
