@@ -1,11 +1,12 @@
-use std::thread;
+use rayon::prelude::*;
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 20;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
 // Main performance bottleneck is the solving of linear eqs 
 // for diffusion and divergence.
 
-// TODO: rewrite with iterators and use rayon to parallelize?
+// TODO: Use rayon to parallelize?
+// Have to restructure in more parallel way. (Coarser for less rayon overhead)
 
 macro_rules! i(
     ($n:expr, $x:expr, $y:expr) => (
@@ -90,7 +91,7 @@ fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
     let mut div = vec![0.0; field.len()];
     let mut p = vec![0.0; field.len()];
     for y in 1..N-1 {
-        for x in 1..N-1 {
+        for x in (1..N-1).into_iter() {
             div[i!(N, x,y)] = -0.5 * (field[i!(N, x+1,y)].0 - field[i!(N, x-1,y)].0 + field[i!(N, x,y+1)].1 - field[i!(N, x,y-1)].1) / N as f32;
         }
     }
@@ -116,6 +117,20 @@ fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
 // advects vector field along itself
 fn advect_vel(field: &mut Vec<(f32,f32)>, dt: f32, N: i32) {
     let mut new = vec![(0.0,0.0); field.len()];
+    new.par_iter_mut().enumerate().for_each(|(i, val)| {
+        let (x, y) = (i as i32 % N, i as i32 / N);
+        let (vx, vy) = field[i!(N, x,y)];
+        let (x0, y0) = (
+            (x as f32 - dt * vx).clamp(0.5, (N-1) as f32 - 0.5),
+            (y as f32 - dt * vy).clamp(0.5, (N-1) as f32 - 0.5));
+        let (qx, qy) = (x0.floor() as i32, y0.floor() as i32);
+        let (v0x, v0y) = field[i!(N, qx  , qy  )];
+        let (v1x, v1y) = field[i!(N, qx+1, qy  )];
+        let (v2x, v2y) = field[i!(N, qx  , qy+1)];
+        let (v3x, v3y) = field[i!(N, qx+1, qy+1)];
+        *val = (blerp(v0x, v1x, v2x, v3x, x0.fract(), y0.fract()),
+                blerp(v0y, v1y, v2y, v3y, x0.fract(), y0.fract()));
+    });
     for y in 1..N-1 {
         for x in 1..N-1 {
             let (vx, vy) = field[i!(N, x,y)];

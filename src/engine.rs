@@ -7,7 +7,7 @@ const VISC: f32 = 1e-9;
 const DIFF: f32 = 1e-5;
 
 const SCALE: i32 = 2;
-const SIZE: i32 = 500;
+const SIZE: i32 = 400;
 const MAX_FPS: u64 = 144;
 
 pub struct Engine {
@@ -80,7 +80,7 @@ impl Engine {
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
-        let radius: i32 = 7;
+        let radius: i32 = 11;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
@@ -103,7 +103,7 @@ impl Engine {
     }
 
     // Renders either vector field or dye field inefficiently
-    // TODO: Dont do this.
+    // TODO: This is a terrible way to do this.
     pub fn render(&mut self) {
         self.canvas.set_draw_color(Color::BLACK);
         self.canvas.clear();
