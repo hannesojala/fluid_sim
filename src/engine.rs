@@ -3,7 +3,7 @@ use fluid::{*};
 use std::{ thread::sleep, time::{Duration, Instant} };
 use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
 
-const VISC: f32 = 1e-9;
+const VISC: f32 = 1e-5;
 const DIFF: f32 = 1e-5;
 
 const SCALE: i32 = 3;
@@ -107,8 +107,8 @@ impl Engine {
     pub fn render(&mut self) {
         self.canvas.set_draw_color(Color::BLACK);
         self.canvas.clear();
-        for y in 1..SIZE-1 {
-            for x in 1..SIZE-1 {
+        for y in 0..SIZE {
+            for x in 0..SIZE {
                 // Draw dye field density
                 let dye_amt = self.fluid.dye(x,y);
                 if  self.draw_mode == 1 && dye_amt > 0.0 {

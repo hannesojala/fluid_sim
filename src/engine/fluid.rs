@@ -1,10 +1,7 @@
 // Quality related, 5 for low, 10-15 for medium, 20 for high
 const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
-// Main performance bottleneck is the solving of linear eqs 
-// for diffusion and divergence.
 
 // TODO: Use rayon to parallelize?
-// Have to restructure in more parallel way. (Coarser for less rayon overhead)
 
 macro_rules! i(
     ($n:expr, $x:expr, $y:expr) => (
@@ -12,21 +9,14 @@ macro_rules! i(
     )
 );
 
-fn bound_vel(field: &mut Vec<(f32,f32)>, N: i32) {
+// boundary conditions
+fn bound(field: &mut Vec<f32>, N: i32, invert: bool) {
+    let a = if invert { -1. } else { 1. };
     for i in 1..N-1 {
-        field[i!(N,   0,i)].0 = -field[i!(N, 1,  i)].0;
-        field[i!(N, N-1,i)].0 = -field[i!(N, N-2,i)].0;
-        field[i!(N, i,  0)].1 = -field[i!(N, i,  1)].1;
-        field[i!(N, i,N-1)].1 = -field[i!(N, i,N-2)].1;
-    }
-}
-
-fn bound_scalar(field: &mut Vec<f32>, N: i32) {
-    for i in 1..N-1 {
-        field[i!(N,   0,i)] = field[i!(N,   1,i)];
-        field[i!(N, N-1,i)] = field[i!(N, N-2,i)];
-        field[i!(N, i,  0)] = field[i!(N, i,  1)];
-        field[i!(N, i,N-1)] = field[i!(N, i,N-2)];
+        field[i!(N,   0,i)] = a * field[i!(N,   1,i)];
+        field[i!(N, N-1,i)] = a * field[i!(N, N-2,i)];
+        field[i!(N, i,  0)] = a * field[i!(N, i,  1)];
+        field[i!(N, i,N-1)] = a * field[i!(N, i,N-2)];
     }
 }
 
@@ -37,8 +27,8 @@ fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 {
     lerp(lerp(v1, v2, k1), lerp(v3, v4, k1), k2)
 }
 
-// TODO: Generalize solve_field fns onto any dimension fields, not specific to diffusion
-fn diffuse_dye(field: &mut Vec<f32>, a: f32, N: i32) {
+// diffuses a scalar field at a rate. is_vel is for boundary conditions
+fn diffuse(field: &Vec<f32>, a: f32, N: i32, is_vel: bool) -> Vec<f32> {
     let mut sol = vec![0.0; field.len()];
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
         let sol_0 = sol.clone(); // This clone actually makes it faster?
@@ -53,47 +43,21 @@ fn diffuse_dye(field: &mut Vec<f32>, a: f32, N: i32) {
                     )) / (1.0 + 4.0 * a);
             }
         }
-        bound_scalar(&mut sol, N);
+        bound(&mut sol, N, is_vel);
     }
-    *field = sol;
+    sol
 }
 
-fn diffuse_vel(field: &mut Vec<(f32,f32)>, a: f32, N: i32) {
-    let mut sol = vec![(0.0, 0.0); field.len()];
-    for _ in 0..GAUSS_SEIDEL_ITERATIONS {
-        let sol_0 = sol.clone(); // This clone actually makes it faster?
-        for y in 1..N-1 {
-            for x in 1..N-1 {
-                sol[i!(N, x,y)].0 = 
-                    (field[i!(N, x,y)].0 + a * (
-                        sol_0[i!(N, x,y+1)].0 + 
-                        sol_0[i!(N, x,y-1)].0 + 
-                        sol_0[i!(N, x+1,y)].0 + 
-                        sol_0[i!(N, x-1,y)].0
-                    )) / (1.0 + 4.0 * a);
-                sol[i!(N, x,y)].1 = 
-                    (field[i!(N, x,y)].1 + a * (
-                        sol_0[i!(N, x,y+1)].1 + 
-                        sol_0[i!(N, x,y-1)].1 + 
-                        sol_0[i!(N, x+1,y)].1 + 
-                        sol_0[i!(N, x-1,y)].1
-                    )) / (1.0 + 4.0 * a);
-            }
-        }
-        bound_vel(&mut sol, N);
-    }
-    *field = sol;
-}
-
-fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
-    let mut div = vec![0.0; field.len()];
-    let mut p = vec![0.0; field.len()];
+// removes divergence
+fn remove_div(fieldx: &mut Vec<f32>, fieldy: &mut Vec<f32>, N: i32) {
+    let mut div = vec![0.0; fieldx.len()];
+    let mut p = vec![0.0; fieldx.len()];
     for y in 1..N-1 {
         for x in (1..N-1).into_iter() {
-            div[i!(N, x,y)] = -0.5 * (field[i!(N, x+1,y)].0 - field[i!(N, x-1,y)].0 + field[i!(N, x,y+1)].1 - field[i!(N, x,y-1)].1) / N as f32;
+            div[i!(N, x,y)] = -0.5 * (fieldx[i!(N, x+1,y)] - fieldx[i!(N, x-1,y)] + fieldy[i!(N, x,y+1)] - fieldy[i!(N, x,y-1)]) / N as f32;
         }
     }
-    bound_scalar(&mut div, N);
+    bound(&mut div, N, false);
     for _ in 0..GAUSS_SEIDEL_ITERATIONS {
         let p_0 = p.clone(); // This clone actually makes it faster?
         for y in 1..N-1 {
@@ -101,45 +65,25 @@ fn remove_div(field: &mut Vec<(f32,f32)>, N: i32) {
                 p[i!(N, x,y)] = (div[i!(N, x,y)] + p_0[i!(N, x-1,y)] + p_0[i!(N, x+1,y)] + p_0[i!(N, x,y-1)] + p_0[i!(N, x,y+1)]) / 4.0;
             }
         }
-        bound_scalar(&mut p, N);
+        bound(&mut p, N, false);
     }
     for y in 1..N-1 {
         for x in 1..N-1 {
-            field[i!(N, x,y)].0 -= 0.5 * (p[i!(N, x+1,y)] - p[i!(N, x-1,y)]) * N as f32;
-            field[i!(N, x,y)].1 -= 0.5 * (p[i!(N, x,y+1)] - p[i!(N, x,y-1)]) * N as f32;
+            fieldx[i!(N, x,y)] -= 0.5 * (p[i!(N, x+1,y)] - p[i!(N, x-1,y)]) * N as f32;
+            fieldy[i!(N, x,y)] -= 0.5 * (p[i!(N, x,y+1)] - p[i!(N, x,y-1)]) * N as f32;
         }
     }
-    bound_vel(field, N);
+    bound(fieldx, N, true);
+    bound(fieldy, N, true);
 }
 
-// advects vector field along itself
-fn advect_vel(field: &mut Vec<(f32,f32)>, dt: f32, N: i32) {
-    let mut new = vec![(0.0,0.0); field.len()];
-    for y in 1..N-1 {
-        for x in 1..N-1 {
-            let (vx, vy) = field[i!(N, x,y)];
-            let (x0, y0) = (
-                (x as f32 - dt * vx).clamp(0.5, (N-1) as f32 - 0.5),
-                (y as f32 - dt * vy).clamp(0.5, (N-1) as f32 - 0.5));
-            let (qx, qy) = (x0.floor() as i32, y0.floor() as i32);
-            let (v0x, v0y) = field[i!(N, qx  , qy  )];
-            let (v1x, v1y) = field[i!(N, qx+1, qy  )];
-            let (v2x, v2y) = field[i!(N, qx  , qy+1)];
-            let (v3x, v3y) = field[i!(N, qx+1, qy+1)];
-            new[i!(N, x ,y)] = (blerp(v0x, v1x, v2x, v3x, x0.fract(), y0.fract()),
-                             blerp(v0y, v1y, v2y, v3y, x0.fract(), y0.fract()));
-        }
-    }
-    bound_vel(&mut new, N);
-    *field = new;
-}
-
-// advects a scalar field along a vector field
-fn advect_dye(sfield: &mut Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32, N: i32) {
+// advects a scalar field along the velocity field
+fn advect(sfield: & Vec<f32>, fluid: & Fluid, dt: f32, is_vel: bool) -> Vec<f32> {
+    let N = fluid.size;
     let mut new = vec![0.0; sfield.len()];
     for y in 1..N-1 {
         for x in 1..N-1 {
-            let (vx, vy) = vfield[i!(N, x,y)];
+            let (vx, vy) = (fluid.vx[i!(N, x,y)], fluid.vy[i!(N, x,y)]);
             let (x0, y0) = (
                 (x as f32 - dt * vx).clamp(0.5, (N-1) as f32 - 0.5),
                 (y as f32 - dt * vy).clamp(0.5, (N-1) as f32 - 0.5));
@@ -151,15 +95,16 @@ fn advect_dye(sfield: &mut Vec<f32>, vfield: &Vec<(f32,f32)>, dt: f32, N: i32) {
             new[i!(N, x ,y)] = blerp(s0, s1, s2, s3, x0.fract(), y0.fract());
         }
     }
-    bound_scalar(&mut new, N);
-    *sfield = new;
+    bound(&mut new, N, is_vel);
+    new
 }
 
 pub struct Fluid {
     pub visc: f32,
     pub diff: f32,
     size: i32,
-    vel: Vec<(f32,f32) >,
+    vx: Vec<f32>,
+    vy: Vec<f32>,
     dye: Vec<f32>
 }
 
@@ -168,20 +113,24 @@ impl Fluid {
         let flat_size = ((size+2)*(size+2)) as usize;
         Fluid {
             visc, diff, size,
-            vel:  vec![(0.0,0.0); flat_size],
+            vx:  vec![0.0; flat_size],
+            vy:  vec![0.0; flat_size],
             dye:  vec![0.0; flat_size],
         }
     }
 
     pub fn update(&mut self, dt_s: f32) {
-        diffuse_vel(&mut self.vel, dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32, self.size);
-        remove_div(&mut self.vel, self.size);
+        self.vx = diffuse(&mut self.vx, dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32, self.size, true);
+        self.vy = diffuse(&mut self.vy, dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32, self.size, true);
+        
+        remove_div(&mut self.vx, &mut self.vy, self.size);
 
-        advect_vel(&mut self.vel, dt_s, self.size);
-        remove_div(&mut self.vel, self.size);
-
-        diffuse_dye(&mut self.dye, dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32, self.size);
-        advect_dye(&mut self.dye, &self.vel, dt_s, self.size);
+        self.vx = advect(& self.vx, & self, dt_s, true);
+        self.vy = advect(& self.vy, & self, dt_s, true);
+        remove_div(&mut self.vx, &mut self.vy, self.size);
+        
+        diffuse(&mut self.dye, dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32, self.size, false);
+        self.dye = advect(& self.dye, &self, dt_s, false);
     }
 
     pub fn add_dye(&mut self, x: i32, y: i32, amt: f32) {
@@ -189,8 +138,8 @@ impl Fluid {
     }
 
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
-        self.vel[i!(self.size, x, y)].0 += vx;
-        self.vel[i!(self.size, x, y)].1 += vy;
+        self.vx[i!(self.size, x, y)] += vx;
+        self.vy[i!(self.size, x, y)] += vy;
     }
 
     pub fn dye(&mut self, x: i32, y: i32) -> f32 {
@@ -198,6 +147,6 @@ impl Fluid {
     }
 
     pub fn vel(&mut self, x: i32, y: i32) -> (f32,f32) {
-        self.vel[i!(self.size, x,y)]
+        (self.vx[i!(self.size, x,y)], self.vy[i!(self.size, x,y)])
     }
 }
