@@ -110,7 +110,7 @@ impl Engine {
         for y in 0..SIZE {
             for x in 0..SIZE {
                 // Draw dye field density
-                let dye_amt = self.fluid.dye(x,y);
+                let dye_amt = self.fluid.dye_at(x,y);
                 if  self.draw_mode == 1 && dye_amt > 0.0 {
                     let color = Color::RGB(0, 0, (dye_amt*255.) as u8); // sqrt() because of percieved brightness (gamma)
                     let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
@@ -118,7 +118,7 @@ impl Engine {
                     self.canvas.fill_rect(rect).unwrap();
                 }
                 // Draw vector field component intensity
-                let (vx, vy) = self.fluid.vel(x,y);
+                let (vx, vy) = self.fluid.vel_at(x,y);
                 if self.draw_mode == 0 && (vx != 0. || vy != 0.) {
                     let color = Color::RGB( (255.0 * vx / SIZE as f32).abs() as u8, // abs() for either direction
                                             (255.0 * vy / SIZE as f32).abs() as u8, 0 );
