@@ -39,8 +39,8 @@ impl Fluid {
 
     pub fn update(&mut self, dt_s: f32) {
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
-        self.vx = Fluid::diffuse(&mut self.vx, velocity_diffusion_rate, self.size, true);
-        self.vy = Fluid::diffuse(&mut self.vy, velocity_diffusion_rate, self.size, true);
+        self.vx = Fluid::diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
+        self.vy = Fluid::diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
         self.remove_div();
 
         self.vx = Fluid::advect(&self.vx, &self.vx, &self.vy, dt_s, self.size);
@@ -50,7 +50,7 @@ impl Fluid {
         self.remove_div();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        Fluid::diffuse(&mut self.dye, dye_diffusion_rate, self.size, false);
+        Fluid::diffuse(&self.dye, dye_diffusion_rate, self.size, false);
         self.dye = Fluid::advect(&self.dye, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye, self.size, false);
     }
@@ -101,7 +101,7 @@ impl Fluid {
         Fluid::bound(&mut self.vy, n, true);
     }
 
-    fn diffuse(field: &Vec<f32>, rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
+    fn diffuse(field: &[f32], rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
         let mut sol = vec![0.0; field.len()];
         for _ in 0..GAUSS_SEIDEL_ITERATIONS {
             let sol_0 = sol.clone(); // This clone actually makes it faster?
@@ -121,7 +121,7 @@ impl Fluid {
         sol
     }
 
-    fn advect(field: &Vec<f32>, vx: &Vec<f32>, vy: &Vec<f32>, dt: f32, n: i32) -> Vec<f32> {
+    fn advect(field: &[f32], vx: &[f32], vy: &[f32], dt: f32, n: i32) -> Vec<f32> {
         let mut new = vec![0.0; field.len()];
         for y in 1..n-1 {
             for x in 1..n-1 {

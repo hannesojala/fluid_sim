@@ -8,7 +8,7 @@ const DIFF: f32 = 1e-5;
 
 const SCALE: i32 = 3;
 const SIZE: i32 = 256;
-const MAX_FPS: u64 = 60;
+const MAX_FPS: u64 = 144;
 
 pub struct Engine {
     pub running: bool,
@@ -42,7 +42,7 @@ impl Engine {
         }
     }
 
-    // Updates the simulation state
+    // Updates the simulation state WRONG TIMESTEP CODE ITS BROKEN
     pub fn update(&mut self) {
         // Get time elapsed for timestep
         let delta_time = self.time.elapsed();
