@@ -140,7 +140,7 @@ impl Fluid {
         new
     }
 
-    fn bound(field: &mut Vec<f32>, n: i32, invert: bool) {
+    fn bound(field: &mut [f32], n: i32, invert: bool) {
         let a = if invert { -1. } else { 1. };
         for i in 1..n-1 {
             field[i!(n,   0,i)] = a * field[i!(n,   1,i)];
