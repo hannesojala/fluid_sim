@@ -1,6 +1,6 @@
 pub mod fluid;
 use fluid::{*};
-use std::{ thread::sleep, time::{Duration, Instant} };
+use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
 
 const VISC: f32 = 1e-5;
@@ -15,10 +15,11 @@ pub struct Engine {
     paused: bool,
     canvas: sdl2::render::WindowCanvas,
     event_pump: sdl2::EventPump,
-    time: Instant,
-    dt_s: f32,
     fluid: Fluid,
-    draw_mode: i32
+    draw_mode: i32,
+    time_frame_start: Instant,
+    delta_time: Duration,
+    total_time: Duration,
 }
 
 impl Engine {
@@ -35,26 +36,29 @@ impl Engine {
             paused: false,
             canvas: window.into_canvas().build().unwrap(),
             event_pump: sdl_context.event_pump().unwrap(),
-            time: Instant::now(),
-            dt_s: 0.0,
             fluid: Fluid::new(VISC, DIFF, SIZE),
-            draw_mode: 0
+            draw_mode: 0,
+            time_frame_start:   Instant::now(),
+            delta_time:         Duration::from_millis(0),
+            total_time:         Duration::from_millis(0),
         }
     }
 
     // Updates the simulation state WRONG TIMESTEP CODE ITS BROKEN
     pub fn update(&mut self) {
         // Get time elapsed for timestep
-        let delta_time = self.time.elapsed();
-        println!("{}ms", delta_time.as_millis());
-        self.time = Instant::now();
+        self.time_frame_start = Instant::now();
+        self.total_time += self.delta_time;
+        println!("{}ms", self.delta_time.as_millis());
         if !self.paused {
-            self.dt_s = delta_time.as_secs_f32(); // needs to be set for some ui funcs
-            self.fluid.update(self.dt_s);
+            self.fluid.update(self.delta_time.as_secs_f32());
         }
-        // If frame was faster than max framerate, sleep a lil
-        static TARGET_DT : Duration = Duration::from_millis(1000 / MAX_FPS);
-        if delta_time < TARGET_DT { sleep(TARGET_DT - delta_time); }
+        static TARGET_DT: Duration = Duration::from_millis(1000 / MAX_FPS);
+        let frame_time = Instant::now() - self.time_frame_start;
+        if frame_time < TARGET_DT {
+            sleep(TARGET_DT - frame_time);
+        }
+        self.delta_time = Instant::now() - self.time_frame_start;
     }
 
     // Handles user input
@@ -85,17 +89,18 @@ impl Engine {
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
         // For all in draw tool box
+        let dt_s = self.delta_time.as_secs_f32();
         for y in y0..y1 {
             for x in x0..x1 {
                 // If dist <= radius
                 if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 {
                     // Add dye or velocity
                     if ms.left() {
-                        self.fluid.add_vel(x, y, self.dt_s * (rx * SIZE) as f32, 
-                                                 self.dt_s * (ry * SIZE) as f32);
+                        self.fluid.add_vel(x, y, dt_s * (rx * SIZE) as f32, 
+                                                 dt_s * (ry * SIZE) as f32);
                     }
                     if ms.right() {
-                        self.fluid.add_dye(x, y, self.dt_s * 32.0);
+                        self.fluid.add_dye(x, y, dt_s * 32.0);
                     }
                 }
             }
