@@ -1,7 +1,7 @@
 // Hate this code so much but IDK how to make it prettier.
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 20;
 
 // TODO: Use rayon to parallelize?
 
@@ -92,7 +92,7 @@ impl Fluid {
         let mut div = vec![0.0; self.vx.len()];
         let mut p = vec![0.0; self.vx.len()];
         for y in 1..n-1 {
-            for x in (1..n-1).into_iter() {
+            for x in 1..n-1 {
                 div[i!(n, x,y)] = -0.5 * (self.vx[i!(n, x+1,y)] - self.vx[i!(n, x-1,y)] + self.vy[i!(n, x,y+1)] - self.vy[i!(n, x,y-1)]) / n as f32;
             }
         }

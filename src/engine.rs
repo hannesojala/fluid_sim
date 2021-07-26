@@ -1,12 +1,13 @@
 pub mod fluid;
 use fluid::{*};
+use image::{GenericImageView, imageops::FilterType::Nearest};
 use std::{thread::sleep, time::{Duration, Instant}};
-use sdl2::{ event::Event, keyboard::Keycode, pixels::Color, rect::Rect };
+use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
-const VISC: f32 = 1e-5;
-const DIFF: f32 = 1e-5;
+const VISC: f32 = 1e-4;
+const DIFF: f32 = 0.;//1e-5;
 
-const SCALE: i32 = 3;
+const SCALE: i32 = 2;
 const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
 
@@ -33,18 +34,31 @@ pub struct Engine {
 impl Engine {
     pub fn init() -> Engine {
         let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
+        let video_subsystem = sdl_context.video().expect("Put an image of size SIZE in this directory called image.jpg");
         let win_size = (SIZE * SCALE) as u32;
         let window = video_subsystem.window("fluid", win_size, win_size)
             .position_centered()
             .build().unwrap();
+        let canvas = window.into_canvas().build().unwrap();
+        let im = image::open(&std::path::Path::new("./image.jpg"));
+        let mut fluid = Fluid::new(VISC, DIFF, SIZE);
+        if let Ok(i) = im {
+            let image = i.resize_to_fill(SIZE as u32, SIZE as u32, Nearest);
+            for y in 0..SIZE {
+                for x in 0..SIZE {
+                    let pixel = image.get_pixel(x as u32, y as u32);
+                    fluid.add_dye(x, y, (pixel.0[0] as f32 / 255., pixel.0[1] as f32 / 255., pixel.0[2] as f32 / 255.))
+                }
+            }
+        }
+            
         
         Engine {
             running: true,
             paused: false,
-            canvas: window.into_canvas().build().unwrap(),
+            canvas,
             event_pump: sdl_context.event_pump().unwrap(),
-            fluid: Fluid::new(VISC, DIFF, SIZE),
+            fluid,
             draw_mode: 1,
             time_frame_start:   Instant::now(),
             delta_time:         Duration::from_millis(0),
