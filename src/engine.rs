@@ -10,6 +10,13 @@ const SCALE: i32 = 3;
 const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
 
+const COLORS: [(u8, u8, u8); 4] = [
+    (128, 128, 128),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255)
+];
+
 pub struct Engine {
     pub running: bool,
     paused: bool,
@@ -20,6 +27,7 @@ pub struct Engine {
     time_frame_start: Instant,
     delta_time: Duration,
     total_time: Duration,
+    draw_color_index: usize,
 }
 
 impl Engine {
@@ -41,6 +49,7 @@ impl Engine {
             time_frame_start:   Instant::now(),
             delta_time:         Duration::from_millis(0),
             total_time:         Duration::from_millis(0),
+            draw_color_index:         0
         }
     }
 
@@ -49,7 +58,7 @@ impl Engine {
         // Get time elapsed for timestep
         self.time_frame_start = Instant::now();
         self.total_time += self.delta_time;
-        println!("{}ms", self.delta_time.as_millis());
+        // println!("{}ms", self.delta_time.as_millis());
         if !self.paused {
             self.fluid.update(self.delta_time.as_secs_f32());
         }
@@ -72,6 +81,9 @@ impl Engine {
                 },
                 Event::KeyDown { keycode: Some(Keycode::Pause), repeat: false, .. } => {
                     self.paused = !self.paused;
+                },
+                Event::KeyDown { keycode: Some(Keycode::C), repeat: false, .. } => {
+                    self.draw_color_index = (self.draw_color_index + 1) % COLORS.len();
                 },
                 _ => {}
             }
@@ -100,7 +112,13 @@ impl Engine {
                                                  dt_s * (ry * SIZE) as f32);
                     }
                     if ms.right() {
-                        self.fluid.add_dye(x, y, dt_s * 32.0);
+                        let clr = COLORS[self.draw_color_index];
+                        let add_dye = (
+                            dt_s * clr.0 as f32 / 8.,
+                            dt_s * clr.1 as f32 / 8.,
+                            dt_s * clr.2 as f32 / 8.,
+                        );
+                        self.fluid.add_dye(x, y, add_dye);
                     }
                 }
             }
@@ -115,9 +133,9 @@ impl Engine {
         for y in 0..SIZE {
             for x in 0..SIZE {
                 // Draw dye field density
-                let dye_amt = self.fluid.dye_at(x,y);
-                if  self.draw_mode == 1 && dye_amt > 0.0 {
-                    let color = Color::RGB(0, 0, (dye_amt*255.) as u8); // sqrt() because of percieved brightness (gamma)
+                let dye = self.fluid.dye_at(x,y);
+                if  self.draw_mode == 1 {
+                    let color = Color::RGB((dye.0*255.) as u8, (dye.1*255.) as u8, (dye.2*255.) as u8);
                     let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();

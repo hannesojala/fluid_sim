@@ -23,7 +23,9 @@ pub struct Fluid {
     size: i32,
     vx: Vec<f32>,
     vy: Vec<f32>,
-    dye: Vec<f32>
+    dye_r: Vec<f32>,
+    dye_g: Vec<f32>,
+    dye_b: Vec<f32>,
 }
 
 impl Fluid {
@@ -33,7 +35,9 @@ impl Fluid {
             visc, diff, size,
             vx:  vec![0.0; flat_size],
             vy:  vec![0.0; flat_size],
-            dye:  vec![0.0; flat_size],
+            dye_r:  vec![0.0; flat_size],
+            dye_g:  vec![0.0; flat_size],
+            dye_b:  vec![0.0; flat_size],
         }
     }
 
@@ -50,13 +54,23 @@ impl Fluid {
         self.remove_div();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        Fluid::diffuse(&self.dye, dye_diffusion_rate, self.size, false);
-        self.dye = Fluid::advect(&self.dye, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.dye, self.size, false);
+        Fluid::diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
+        self.dye_r = Fluid::advect(&self.dye_r, &self.vx, &self.vy, dt_s, self.size);
+        Fluid::bound(&mut self.dye_r, self.size, false);
+
+        Fluid::diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
+        self.dye_g = Fluid::advect(&self.dye_g, &self.vx, &self.vy, dt_s, self.size);
+        Fluid::bound(&mut self.dye_g, self.size, false);
+
+        Fluid::diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
+        self.dye_b = Fluid::advect(&self.dye_b, &self.vx, &self.vy, dt_s, self.size);
+        Fluid::bound(&mut self.dye_b, self.size, false);
     }
 
-    pub fn add_dye(&mut self, x: i32, y: i32, amt: f32) {
-        self.dye[i!(self.size, x, y)] += amt;
+    pub fn add_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
+        self.dye_r[i!(self.size, x, y)] += rgb.0;
+        self.dye_g[i!(self.size, x, y)] += rgb.1;
+        self.dye_b[i!(self.size, x, y)] += rgb.2;
     }
 
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
@@ -64,8 +78,9 @@ impl Fluid {
         self.vy[i!(self.size, x, y)] += vy;
     }
 
-    pub fn dye_at(&mut self, x: i32, y: i32) -> f32 {
-        self.dye[i!(self.size, x,y)]
+    pub fn dye_at(&mut self, x: i32, y: i32) -> (f32, f32, f32) {
+        let i = i!(self.size, x,y);
+        (self.dye_r[i], self.dye_g[i], self.dye_b[i])
     }
 
     pub fn vel_at(&mut self, x: i32, y: i32) -> (f32,f32) {
