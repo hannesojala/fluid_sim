@@ -10,5 +10,6 @@ If an image called 'image.jpg' is in the executables directory it will be loaded
 Swirl the liquid with mouse-left, and add dye of the selected color with mouse-right.
 
 ![alt text](demo.png?raw=true)
+![alt text](demo2.png?raw=true)
 
 To compile: Install Rust, the easiest way is with [rustup](https://rustup.rs/), and simply build and run with the command "cargo run --release". If your OS does not have the required SDL2 libraries, follow the SDL2 install instructions here: https://github.com/Rust-SDL2/rust-sdl2. On windows you might need to add a SDL.dll file. Additionally, using the "bundled" feature described in the previous link will probably alleviate all of this trouble.
