@@ -5,6 +5,8 @@ Switch between viewing modes (fluid velocity, default=dye color) by pressing "M"
 Switch between dye colors (default=Red, Green, Blue and Eraser Dye) by pressing "C".
 Pause with 'Pause'.
 
+If an image called 'image.jpg' is in the executables directory it will be loaded as the background. This is implemented very lazily, I know.
+
 Swirl the liquid with mouse-left, and add dye of the selected color with mouse-right.
 
 ![alt text](demo.png?raw=true)
