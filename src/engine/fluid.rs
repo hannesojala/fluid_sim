@@ -54,15 +54,15 @@ impl Fluid {
         self.remove_div();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        Fluid::diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
+        self.dye_r = Fluid::diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
         self.dye_r = Fluid::advect(&self.dye_r, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_r, self.size, false);
 
-        Fluid::diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
+        self.dye_g = Fluid::diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
         self.dye_g = Fluid::advect(&self.dye_g, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_g, self.size, false);
 
-        Fluid::diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
+        self.dye_b = Fluid::diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
         self.dye_b = Fluid::advect(&self.dye_b, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_b, self.size, false);
     }
