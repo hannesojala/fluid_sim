@@ -114,9 +114,9 @@ impl Engine {
                     if ms.right() {
                         let clr = COLORS[self.draw_color_index];
                         let add_dye = (
-                            dt_s * clr.0 as f32 / 8.,
-                            dt_s * clr.1 as f32 / 8.,
-                            dt_s * clr.2 as f32 / 8.,
+                            dt_s * clr.0 as f32 / 16.,
+                            dt_s * clr.1 as f32 / 16.,
+                            dt_s * clr.2 as f32 / 16.,
                         );
                         self.fluid.add_dye(x, y, add_dye);
                     }

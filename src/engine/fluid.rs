@@ -1,7 +1,7 @@
 // Hate this code so much but IDK how to make it prettier.
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
 
 // TODO: Use rayon to parallelize?
 
