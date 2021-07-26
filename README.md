@@ -1,9 +1,11 @@
 # fluid simulator
 A fluid simulator designed to learn Rust.
 
-Switch between viewing modes (fluid velocity, dye density) by pressing "M".
+Switch between viewing modes (fluid velocity, default=dye color) by pressing "M".
+Switch between dye colors (default=Red, Green, Blue and Eraser Dye) by pressing "C".
+Pause with 'Pause'.
 
-Swirl the liquid with mouse-left, and add dye to view in the dye mode with mouse-right.
+Swirl the liquid with mouse-left, and add dye of the selected color with mouse-right.
 
 ![alt text](demo.png?raw=true)
 
