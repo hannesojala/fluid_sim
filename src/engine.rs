@@ -10,11 +10,11 @@ const SCALE: i32 = 3;
 const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
 
-const COLORS: [(u8, u8, u8); 4] = [
-    (128, 128, 128),
+const COLORS: [(i16, i16, i16); 4] = [
     (255, 0, 0),
     (0, 255, 0),
-    (0, 0, 255)
+    (0, 0, 255),
+    (-255, -255, -255),
 ];
 
 pub struct Engine {
@@ -58,7 +58,7 @@ impl Engine {
         // Get time elapsed for timestep
         self.time_frame_start = Instant::now();
         self.total_time += self.delta_time;
-        // println!("{}ms", self.delta_time.as_millis());
+        println!("{}ms", self.delta_time.as_millis());
         if !self.paused {
             self.fluid.update(self.delta_time.as_secs_f32());
         }
