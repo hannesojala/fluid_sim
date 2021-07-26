@@ -45,7 +45,7 @@ impl Engine {
             canvas: window.into_canvas().build().unwrap(),
             event_pump: sdl_context.event_pump().unwrap(),
             fluid: Fluid::new(VISC, DIFF, SIZE),
-            draw_mode: 0,
+            draw_mode: 1,
             time_frame_start:   Instant::now(),
             delta_time:         Duration::from_millis(0),
             total_time:         Duration::from_millis(0),
