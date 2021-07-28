@@ -124,13 +124,16 @@ impl Fluid {
         let n = self.size;
         for y in 2..n-2 {
             for x in 2..n-2 {
-                let mut dir_x = (self.curl(x + 0, y - 1)).abs() - (self.curl(x + 0, y + 1)).abs();
-                let mut dir_y = (self.curl(x + 1, y + 0)).abs() - (self.curl(x - 1, y + 0)).abs();
-                let len = (dir_x*dir_x + dir_y*dir_y).sqrt() + 1e-16;
-                dir_x *= self.vort / len;
-                dir_y *= self.vort / len;
-                self.vx[i!(n,x,y)] += dt_s * self.curl(x,y) * dir_x;
-                self.vy[i!(n,x,y)] += dt_s * self.curl(x,y) * dir_y;
+                // Get the gradient of curl
+                let mut vort_grad_x = (self.curl(x + 0, y - 1)).abs() - (self.curl(x + 0, y + 1)).abs();
+                let mut vort_grad_y = (self.curl(x + 1, y + 0)).abs() - (self.curl(x - 1, y + 0)).abs();
+                let len = (vort_grad_x*vort_grad_x + vort_grad_y*vort_grad_y).sqrt() + 1e-16; // prevent divide by zero
+                // Normalize and scale by vorticity
+                vort_grad_x *= self.vort / len;
+                vort_grad_y *= self.vort / len;
+                // Adjust the velocity by the current curl scaled by the vorticity gradient
+                self.vx[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_x;
+                self.vy[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_y;
             }
         }
     }
