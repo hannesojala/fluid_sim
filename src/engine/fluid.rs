@@ -46,13 +46,11 @@ impl Fluid {
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
         self.vx = Fluid::diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
         self.vy = Fluid::diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
-        //self.remove_div();
 
         self.vx = Fluid::advect(&self.vx, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.vx, self.size, true);
         self.vy = Fluid::advect(&self.vy, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.vx, self.size, true);
-        //self.remove_div();
         
         self.confine_vorticity(dt_s);
         self.remove_div();
@@ -75,6 +73,11 @@ impl Fluid {
         self.dye_r[i!(self.size, x, y)] += rgb.0;
         self.dye_g[i!(self.size, x, y)] += rgb.1;
         self.dye_b[i!(self.size, x, y)] += rgb.2;
+    }
+    pub fn set_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
+        self.dye_r[i!(self.size, x, y)] = rgb.0;
+        self.dye_g[i!(self.size, x, y)] = rgb.1;
+        self.dye_b[i!(self.size, x, y)] = rgb.2;
     }
 
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
@@ -125,12 +128,12 @@ impl Fluid {
         for y in 2..n-2 {
             for x in 2..n-2 {
                 // Get the gradient of curl
-                let mut vort_grad_x = (self.curl(x + 0, y - 1)).abs() - (self.curl(x + 0, y + 1)).abs();
-                let mut vort_grad_y = (self.curl(x + 1, y + 0)).abs() - (self.curl(x - 1, y + 0)).abs();
+                let mut vort_grad_x = self.curl(x+0, y-1).abs() - self.curl(x+0, y+1).abs();
+                let mut vort_grad_y = self.curl(x+1, y+0).abs() - self.curl(x-1, y+0).abs();
                 let len = (vort_grad_x*vort_grad_x + vort_grad_y*vort_grad_y).sqrt() + 1e-16; // prevent divide by zero
                 // Normalize and scale by vorticity
-                vort_grad_x *= self.vort / len;
-                vort_grad_y *= self.vort / len;
+                vort_grad_x *= self.vort / (len * n as f32);
+                vort_grad_y *= self.vort / (len * n as f32);
                 // Adjust the velocity by the current curl scaled by the vorticity gradient
                 self.vx[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_x;
                 self.vy[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_y;

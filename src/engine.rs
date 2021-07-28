@@ -4,12 +4,12 @@ use image::{GenericImageView, imageops::FilterType::Nearest};
 use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
-const VISC: f32 = 1e-4;
+const VISC: f32 = 1e-5;
 const DIFF: f32 = 1e-15;
-const VORT: f32 = 16.;
+const VORT: f32 = 1280.;
 
 const SCALE: i32 = 2;
-const SIZE: i32 = 256;
+const SIZE: i32 = 300;
 const MAX_FPS: u64 = 144;
 
 const COLORS: [(i16, i16, i16); 4] = [
@@ -111,7 +111,7 @@ impl Engine {
         let (rx, ry) = (rms.x(), rms.y());
 
         // Get box for draw tool radius
-        let radius: i32 = SIZE / 64;
+        let radius: i32 = SIZE / 32;
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
@@ -128,12 +128,12 @@ impl Engine {
                     }
                     if ms.right() {
                         let clr = COLORS[self.draw_color_index];
-                        let add_dye = (
+                        let dye = (
                             dt_s * clr.0 as f32 / 16.,
                             dt_s * clr.1 as f32 / 16.,
                             dt_s * clr.2 as f32 / 16.,
                         );
-                        self.fluid.add_dye(x, y, add_dye);
+                        self.fluid.set_dye(x, y, dye);
                     }
                 }
             }
