@@ -1,3 +1,6 @@
+use core::panic;
+use std::f32::NAN;
+
 // Hate this code so much but IDK how to make it prettier.
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
@@ -20,6 +23,7 @@ fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 {
 pub struct Fluid {
     pub visc: f32,
     pub diff: f32,
+    pub vort: f32,
     size: i32,
     vx: Vec<f32>,
     vy: Vec<f32>,
@@ -29,10 +33,10 @@ pub struct Fluid {
 }
 
 impl Fluid {
-    pub fn new(visc: f32, diff: f32, size: i32) -> Fluid {
+    pub fn new(visc: f32, diff: f32, vort: f32, size: i32) -> Fluid {
         let flat_size = ((size+2)*(size+2)) as usize;
         Fluid {
-            visc, diff, size,
+            visc, diff, size, vort,
             vx:  vec![0.0; flat_size],
             vy:  vec![0.0; flat_size],
             dye_r:  vec![0.0; flat_size],
@@ -45,12 +49,15 @@ impl Fluid {
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
         self.vx = Fluid::diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
         self.vy = Fluid::diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
-        self.remove_div();
+        //self.remove_div();
 
         self.vx = Fluid::advect(&self.vx, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.vx, self.size, true);
         self.vy = Fluid::advect(&self.vy, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.vx, self.size, true);
+        //self.remove_div();
+        
+        self.confine_vorticity(dt_s);
         self.remove_div();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
@@ -114,6 +121,26 @@ impl Fluid {
         }
         Fluid::bound(&mut self.vx, n, true);
         Fluid::bound(&mut self.vy, n, true);
+    }
+
+    fn confine_vorticity(&mut self, dt_s: f32) {
+        let n = self.size;
+        for y in 2..n-2 {
+            for x in 2..n-2 {
+                let mut dir_x = (self.curl(x + 0, y - 1)).abs() - (self.curl(x + 0, y + 1)).abs();
+                let mut dir_y = (self.curl(x + 1, y + 0)).abs() - (self.curl(x - 1, y + 0)).abs();
+                let len = (dir_x*dir_x + dir_y*dir_y).sqrt() + 1e-16;
+                dir_x *= self.vort / len;
+                dir_y *= self.vort / len;
+                self.vx[i!(n,x,y)] += dt_s * self.curl(x,y) * dir_x;
+                self.vy[i!(n,x,y)] += dt_s * self.curl(x,y) * dir_y;
+            }
+        }
+    }
+
+    fn curl(&self, x: i32, y: i32) -> f32 {
+        self.vx[i!(self.size, x,y+1)] - self.vx[i!(self.size, x,y-1)] +
+        self.vy[i!(self.size, x-1,y)] - self.vy[i!(self.size, x+1,y)]
     }
 
     fn diffuse(field: &[f32], rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
