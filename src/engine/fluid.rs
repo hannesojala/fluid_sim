@@ -1,7 +1,7 @@
 // Hate this code so much but IDK how to make it prettier.
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 10;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
 
 // TODO: Use rayon to parallelize?
 
@@ -27,6 +27,7 @@ pub struct Fluid {
     dye_r: Vec<f32>,
     dye_g: Vec<f32>,
     dye_b: Vec<f32>,
+    pipes: Vec<(usize, usize, f32, f32)>,
 }
 
 impl Fluid {
@@ -34,15 +35,22 @@ impl Fluid {
         let flat_size = ((size+2)*(size+2)) as usize;
         Fluid {
             visc, diff, size, vort,
-            vx:  vec![0.0; flat_size],
-            vy:  vec![0.0; flat_size],
-            dye_r:  vec![0.0; flat_size],
-            dye_g:  vec![0.0; flat_size],
-            dye_b:  vec![0.0; flat_size],
+            vx: vec![0.0; flat_size],
+            vy: vec![0.0; flat_size],
+            dye_r: vec![0.0; flat_size],
+            dye_g: vec![0.0; flat_size],
+            dye_b: vec![0.0; flat_size],
+            pipes: Vec::new(),
         }
     }
 
     pub fn update(&mut self, dt_s: f32) {
+        for pipe in &self.pipes {
+            let i = i![self.size, pipe.0 as i32, pipe.1 as i32];
+            self.vx[i] += pipe.2;
+            self.vy[i] += pipe.3;
+        }
+
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
         self.vx = Fluid::diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
         self.vy = Fluid::diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
@@ -67,6 +75,10 @@ impl Fluid {
         self.dye_b = Fluid::diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
         self.dye_b = Fluid::advect(&self.dye_b, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_b, self.size, false);
+    }
+
+    pub fn add_pipe(&mut self, x: usize, y: usize, flow_x: f32, flow_y: f32) {
+        self.pipes.push((x, y, flow_x, flow_y));
     }
 
     pub fn add_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {

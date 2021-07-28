@@ -9,7 +9,7 @@ const DIFF: f32 = 0.;//1e-15;
 const VORT: f32 = 1280.;
 
 const SCALE: i32 = 3;
-const SIZE: i32 = 300;
+const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
 
 const COLORS: [(i16, i16, i16); 4] = [
@@ -51,8 +51,7 @@ impl Engine {
                     fluid.set_dye(x, y, (pixel.0[0] as f32, pixel.0[1] as f32, pixel.0[2] as f32 ))
                 }
             }
-        }
-            
+        }   
         
         Engine {
             running: true,
