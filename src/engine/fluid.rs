@@ -1,6 +1,3 @@
-use core::panic;
-use std::f32::NAN;
-
 // Hate this code so much but IDK how to make it prettier.
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
