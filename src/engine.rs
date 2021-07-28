@@ -4,11 +4,11 @@ use image::{GenericImageView, imageops::FilterType::Nearest};
 use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
-const VISC: f32 = 1e-5;
-const DIFF: f32 = 1e-15;
+const VISC: f32 = 1e-15;
+const DIFF: f32 = 0.;//1e-15;
 const VORT: f32 = 1280.;
 
-const SCALE: i32 = 2;
+const SCALE: i32 = 3;
 const SIZE: i32 = 300;
 const MAX_FPS: u64 = 144;
 
@@ -48,7 +48,7 @@ impl Engine {
             for y in 0..SIZE {
                 for x in 0..SIZE {
                     let pixel = image.get_pixel(x as u32, y as u32);
-                    fluid.add_dye(x, y, (pixel.0[0] as f32 / 255., pixel.0[1] as f32 / 255., pixel.0[2] as f32 / 255.))
+                    fluid.set_dye(x, y, (pixel.0[0] as f32, pixel.0[1] as f32, pixel.0[2] as f32 ))
                 }
             }
         }
@@ -115,8 +115,9 @@ impl Engine {
         let (y0,y1) = ((my-radius).max(1), (my+radius).min(SIZE-2));
         let (x0,x1) = ((mx-radius).max(1), (mx+radius).min(SIZE-2));
         
-        // For all in draw tool box
         let dt_s = self.delta_time.as_secs_f32();
+        
+        // For all in draw tool box
         for y in y0..y1 {
             for x in x0..x1 {
                 // If dist <= radius
@@ -129,9 +130,9 @@ impl Engine {
                     if ms.right() {
                         let clr = COLORS[self.draw_color_index];
                         let dye = (
-                            dt_s * clr.0 as f32 / 16.,
-                            dt_s * clr.1 as f32 / 16.,
-                            dt_s * clr.2 as f32 / 16.,
+                            clr.0 as f32,
+                            clr.1 as f32,
+                            clr.2 as f32,
                         );
                         self.fluid.set_dye(x, y, dye);
                     }
@@ -150,7 +151,7 @@ impl Engine {
                 // Draw dye field density
                 let dye = self.fluid.dye_at(x,y);
                 if  self.draw_mode == 1 {
-                    let color = Color::RGB((dye.0*255.) as u8, (dye.1*255.) as u8, (dye.2*255.) as u8);
+                    let color = Color::RGB(dye.0 as u8, dye.1 as u8, dye.2 as u8);
                     let rect = Rect::new(SCALE * x, SCALE * y, SCALE as u32, SCALE as u32);
                     self.canvas.set_draw_color(color);
                     self.canvas.fill_rect(rect).unwrap();
