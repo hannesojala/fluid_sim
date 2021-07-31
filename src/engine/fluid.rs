@@ -12,10 +12,10 @@ fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 {
 }
 
 pub struct Fluid {
-    pub visc: f32,
-    pub diff: f32,
-    pub vort: f32,
-    pub qual: u32,
+    visc: f32,
+    diff: f32,
+    vort: f32,
+    qual: u32,
     size: i32,
     vx: Vec<f32>,
     vy: Vec<f32>,
