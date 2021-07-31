@@ -1,10 +1,4 @@
 // Hate this code so much but IDK how to make it prettier.
-
-// Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
-
-// TODO: Use rayon to parallelize?
-
 macro_rules! i(
     ($n:expr, $x:expr, $y:expr) => (
         ($n * $y + $x) as usize
@@ -21,6 +15,7 @@ pub struct Fluid {
     pub visc: f32,
     pub diff: f32,
     pub vort: f32,
+    pub qual: u32,
     size: i32,
     vx: Vec<f32>,
     vy: Vec<f32>,
@@ -31,10 +26,10 @@ pub struct Fluid {
 }
 
 impl Fluid {
-    pub fn new(visc: f32, diff: f32, vort: f32, size: i32) -> Fluid {
+    pub fn new(visc: f32, diff: f32, vort: f32, qual: u32, size: i32) -> Fluid {
         let flat_size = ((size+2)*(size+2)) as usize;
         Fluid {
-            visc, diff, size, vort,
+            visc, diff, size, vort, qual,
             vx: vec![0.0; flat_size],
             vy: vec![0.0; flat_size],
             dye_r: vec![0.0; flat_size],
@@ -52,27 +47,28 @@ impl Fluid {
         }
 
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
-        self.vx = Fluid::diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
-        self.vy = Fluid::diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
+        self.vx = self.diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
+        self.vy = self.diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
 
         self.vx = Fluid::advect(&self.vx, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.vx, self.size, true);
+
         self.vy = Fluid::advect(&self.vy, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.vx, self.size, true);
+        Fluid::bound(&mut self.vy, self.size, true);
         
         self.confine_vorticity(dt_s);
         self.remove_div();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        self.dye_r = Fluid::diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
+        self.dye_r = self.diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
         self.dye_r = Fluid::advect(&self.dye_r, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_r, self.size, false);
 
-        self.dye_g = Fluid::diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
+        self.dye_g = self.diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
         self.dye_g = Fluid::advect(&self.dye_g, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_g, self.size, false);
 
-        self.dye_b = Fluid::diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
+        self.dye_b = self.diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
         self.dye_b = Fluid::advect(&self.dye_b, &self.vx, &self.vy, dt_s, self.size);
         Fluid::bound(&mut self.dye_b, self.size, false);
     }
@@ -86,6 +82,7 @@ impl Fluid {
         self.dye_g[i!(self.size, x, y)] += rgb.1;
         self.dye_b[i!(self.size, x, y)] += rgb.2;
     }
+
     pub fn set_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
         self.dye_r[i!(self.size, x, y)] = rgb.0;
         self.dye_g[i!(self.size, x, y)] = rgb.1;
@@ -95,6 +92,11 @@ impl Fluid {
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
         self.vx[i!(self.size, x, y)] += vx;
         self.vy[i!(self.size, x, y)] += vy;
+    }
+
+    pub fn mul_vel(&mut self, x: i32, y: i32, amt: f32) {
+        self.vx[i!(self.size, x, y)] *= amt;
+        self.vy[i!(self.size, x, y)] *= amt;
     }
 
     pub fn dye_at(&mut self, x: i32, y: i32) -> (f32, f32, f32) {
@@ -116,7 +118,7 @@ impl Fluid {
             }
         }
         Fluid::bound(&mut div, n, false);
-        for _ in 0..GAUSS_SEIDEL_ITERATIONS {
+        for _ in 0..self.qual {
             let p_0 = p.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
                 for x in 1..n-1 {
@@ -158,9 +160,9 @@ impl Fluid {
         self.vy[i!(self.size, x-1,y)] - self.vy[i!(self.size, x+1,y)]
     }
 
-    fn diffuse(field: &[f32], rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
+    fn diffuse(&self, field: &[f32], rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
         let mut sol = vec![0.0; field.len()];
-        for _ in 0..GAUSS_SEIDEL_ITERATIONS {
+        for _ in 0..self.qual {
             let sol_0 = sol.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
                 for x in 1..n-1 {

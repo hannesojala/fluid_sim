@@ -4,13 +4,16 @@ use image::{GenericImageView, imageops::FilterType::Nearest};
 use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
-const VISC: f32 = 1e-15;
+const VISC: f32 = 0.;//1e-15;
 const DIFF: f32 = 0.;//1e-15;
 const VORT: f32 = 1280.;
 
 const SCALE: i32 = 3;
 const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
+
+// Quality related, 5 for low, 10-15 for medium, 20 for high
+const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
 
 const COLORS: [(i16, i16, i16); 4] = [
     (255, 0, 0),
@@ -42,7 +45,7 @@ impl Engine {
             .build().unwrap();
         let canvas = window.into_canvas().build().unwrap();
         let im = image::open(&std::path::Path::new("./image.jpg"));
-        let mut fluid = Fluid::new(VISC, DIFF, VORT, SIZE);
+        let mut fluid = Fluid::new(VISC, DIFF, VORT, GAUSS_SEIDEL_ITERATIONS, SIZE);
         if let Ok(i) = im {
             let image = i.resize_to_fill(SIZE as u32, SIZE as u32, Nearest);
             for y in 0..SIZE {
@@ -57,13 +60,13 @@ impl Engine {
             running: true,
             paused: false,
             canvas,
-            event_pump: sdl_context.event_pump().unwrap(),
+            event_pump: sdl_context.event_pump().expect("Could not get event pump!"),
             fluid,
-            draw_mode: 1,
+            draw_mode:          1,
             time_frame_start:   Instant::now(),
             delta_time:         Duration::from_millis(0),
             total_time:         Duration::from_millis(0),
-            draw_color_index:         0
+            draw_color_index:   0
         }
     }
 
@@ -120,11 +123,11 @@ impl Engine {
         for y in y0..y1 {
             for x in x0..x1 {
                 // If dist <= radius
-                if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() <= radius as f32 {
+                if (((mx-x)*(mx-x)+(my-y)*(my-y))as f32).sqrt() < radius as f32 {
                     // Add dye or velocity
                     if ms.left() {
-                        self.fluid.add_vel(x, y, dt_s * (rx * SIZE) as f32, 
-                                                 dt_s * (ry * SIZE) as f32);
+                        self.fluid.add_vel(x, y, dt_s * ((mx-x).abs() * rx * SIZE) as f32, 
+                                                 dt_s * ((my-y).abs() * ry * SIZE) as f32);
                     }
                     if ms.right() {
                         let clr = COLORS[self.draw_color_index];
@@ -134,6 +137,9 @@ impl Engine {
                             clr.2 as f32,
                         );
                         self.fluid.set_dye(x, y, dye);
+                    }
+                    if ms.middle() {
+                        
                     }
                 }
             }
