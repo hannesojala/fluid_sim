@@ -22,7 +22,6 @@ pub struct Fluid {
     dye_r: Vec<f32>,
     dye_g: Vec<f32>,
     dye_b: Vec<f32>,
-    pipes: Vec<(usize, usize, f32, f32)>,
 }
 
 impl Fluid {
@@ -35,80 +34,61 @@ impl Fluid {
             dye_r: vec![0.0; flat_size],
             dye_g: vec![0.0; flat_size],
             dye_b: vec![0.0; flat_size],
-            pipes: Vec::new(),
         }
     }
 
     pub fn update(&mut self, dt_s: f32) {
-        for pipe in &self.pipes {
-            let i = i![self.size, pipe.0 as i32, pipe.1 as i32];
-            self.vx[i] += pipe.2;
-            self.vy[i] += pipe.3;
-        }
-
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
-        self.vx = self.diffuse(&self.vx, velocity_diffusion_rate, self.size, true);
-        self.vy = self.diffuse(&self.vy, velocity_diffusion_rate, self.size, true);
+        self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
+        self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true);
 
-        self.vx = Fluid::advect(&self.vx, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.vx, self.size, true);
+        self.vx = self.advect_field(&self.vx, &self.vx, &self.vy, dt_s);
+        self.vy = self.advect_field(&self.vy, &self.vx, &self.vy, dt_s);
 
-        self.vy = Fluid::advect(&self.vy, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.vy, self.size, true);
+        Fluid::bound_field(&mut self.vx, self.size, true);
+        Fluid::bound_field(&mut self.vy, self.size, true);
         
         self.confine_vorticity(dt_s);
-        self.remove_div();
+        self.remove_divergence();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        self.dye_r = self.diffuse(&self.dye_r, dye_diffusion_rate, self.size, false);
-        self.dye_r = Fluid::advect(&self.dye_r, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.dye_r, self.size, false);
+        self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
+        self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
+        self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);
 
-        self.dye_g = self.diffuse(&self.dye_g, dye_diffusion_rate, self.size, false);
-        self.dye_g = Fluid::advect(&self.dye_g, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.dye_g, self.size, false);
+        self.dye_r = self.advect_field(&self.dye_r, &self.vx, &self.vy, dt_s);
+        self.dye_g = self.advect_field(&self.dye_g, &self.vx, &self.vy, dt_s);
+        self.dye_b = self.advect_field(&self.dye_b, &self.vx, &self.vy, dt_s);
 
-        self.dye_b = self.diffuse(&self.dye_b, dye_diffusion_rate, self.size, false);
-        self.dye_b = Fluid::advect(&self.dye_b, &self.vx, &self.vy, dt_s, self.size);
-        Fluid::bound(&mut self.dye_b, self.size, false);
-    }
-
-    pub fn add_pipe(&mut self, x: usize, y: usize, flow_x: f32, flow_y: f32) {
-        self.pipes.push((x, y, flow_x, flow_y));
-    }
-
-    pub fn add_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
-        self.dye_r[i!(self.size, x, y)] += rgb.0;
-        self.dye_g[i!(self.size, x, y)] += rgb.1;
-        self.dye_b[i!(self.size, x, y)] += rgb.2;
+        Fluid::bound_field(&mut self.dye_r, self.size, false);
+        Fluid::bound_field(&mut self.dye_g, self.size, false);
+        Fluid::bound_field(&mut self.dye_b, self.size, false);
     }
 
     pub fn set_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
-        self.dye_r[i!(self.size, x, y)] = rgb.0;
-        self.dye_g[i!(self.size, x, y)] = rgb.1;
-        self.dye_b[i!(self.size, x, y)] = rgb.2;
+        let i = i!(self.size, x,y);
+        self.dye_r[i] = rgb.0;
+        self.dye_g[i] = rgb.1;
+        self.dye_b[i] = rgb.2;
     }
 
     pub fn add_vel(&mut self, x: i32, y: i32, vx: f32, vy: f32) {
-        self.vx[i!(self.size, x, y)] += vx;
-        self.vy[i!(self.size, x, y)] += vy;
+        let i = i!(self.size, x,y);
+        self.vx[i] += vx;
+        self.vy[i] += vy;
     }
 
-    pub fn mul_vel(&mut self, x: i32, y: i32, amt: f32) {
-        self.vx[i!(self.size, x, y)] *= amt;
-        self.vy[i!(self.size, x, y)] *= amt;
-    }
-
-    pub fn dye_at(&mut self, x: i32, y: i32) -> (f32, f32, f32) {
+    pub fn dye_at(&self, x: i32, y: i32) -> (f32, f32, f32) {
         let i = i!(self.size, x,y);
         (self.dye_r[i], self.dye_g[i], self.dye_b[i])
     }
 
-    pub fn vel_at(&mut self, x: i32, y: i32) -> (f32,f32) {
-        (self.vx[i!(self.size, x,y)], self.vy[i!(self.size, x,y)])
+    pub fn vel_at(&self, x: i32, y: i32) -> (f32,f32) {
+        let i = i!(self.size, x,y);
+        (self.vx[i], self.vy[i])
     }
 
-    fn remove_div(&mut self) {
+    fn remove_divergence(&mut self) {
         let n = self.size;
         let mut div = vec![0.0; self.vx.len()];
         let mut p = vec![0.0; self.vx.len()];
@@ -117,7 +97,7 @@ impl Fluid {
                 div[i!(n, x,y)] = -0.5 * (self.vx[i!(n, x+1,y)] - self.vx[i!(n, x-1,y)] + self.vy[i!(n, x,y+1)] - self.vy[i!(n, x,y-1)]) / n as f32;
             }
         }
-        Fluid::bound(&mut div, n, false);
+        Fluid::bound_field(&mut div, n, false);
         for _ in 0..self.qual {
             let p_0 = p.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
@@ -125,7 +105,7 @@ impl Fluid {
                     p[i!(n, x,y)] = (div[i!(n, x,y)] + p_0[i!(n, x-1,y)] + p_0[i!(n, x+1,y)] + p_0[i!(n, x,y-1)] + p_0[i!(n, x,y+1)]) / 4.0;
                 }
             }
-            Fluid::bound(&mut p, n, false);
+            Fluid::bound_field(&mut p, n, false);
         }
         for y in 1..n-1 {
             for x in 1..n-1 {
@@ -133,8 +113,8 @@ impl Fluid {
                 self.vy[i!(n, x,y)] -= 0.5 * (p[i!(n, x,y+1)] - p[i!(n, x,y-1)]) * n as f32;
             }
         }
-        Fluid::bound(&mut self.vx, n, true);
-        Fluid::bound(&mut self.vy, n, true);
+        Fluid::bound_field(&mut self.vx, n, true);
+        Fluid::bound_field(&mut self.vy, n, true);
     }
 
     fn confine_vorticity(&mut self, dt_s: f32) {
@@ -142,31 +122,32 @@ impl Fluid {
         for y in 2..n-2 {
             for x in 2..n-2 {
                 // Get the gradient of curl
-                let mut vort_grad_x = self.curl(x+0, y-1).abs() - self.curl(x+0, y+1).abs();
-                let mut vort_grad_y = self.curl(x+1, y+0).abs() - self.curl(x-1, y+0).abs();
-                let len = (vort_grad_x*vort_grad_x + vort_grad_y*vort_grad_y).sqrt() + 1e-16; // prevent divide by zero
+                let mut vort_grad_x = self.vel_curl_at(x, y-1).abs() - self.vel_curl_at(x, y+1).abs();
+                let mut vort_grad_y = self.vel_curl_at(x+1, y).abs() - self.vel_curl_at(x-1, y).abs();
                 // Normalize and scale by vorticity
-                vort_grad_x *= self.vort / (len * n as f32);
-                vort_grad_y *= self.vort / (len * n as f32);
+                let len = (vort_grad_x*vort_grad_x + vort_grad_y*vort_grad_y).sqrt().max(f32::EPSILON); // max prevents divide by zero
+                vort_grad_x *= self.vort / len;
+                vort_grad_y *= self.vort / len;
                 // Adjust the velocity by the current curl scaled by the vorticity gradient
-                self.vx[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_x;
-                self.vy[i!(n,x,y)] += dt_s * self.curl(x,y) * vort_grad_y;
+                self.vx[i!(n,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_x;
+                self.vy[i!(n,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_y;
             }
         }
     }
 
-    fn curl(&self, x: i32, y: i32) -> f32 {
+    fn vel_curl_at(&self, x: i32, y: i32) -> f32 {
         self.vx[i!(self.size, x,y+1)] - self.vx[i!(self.size, x,y-1)] +
         self.vy[i!(self.size, x-1,y)] - self.vy[i!(self.size, x+1,y)]
     }
 
-    fn diffuse(&self, field: &[f32], rate: f32, n: i32, is_vel: bool) -> Vec<f32> {
-        let mut sol = vec![0.0; field.len()];
+    fn diffuse_field(&self, field: &[f32], rate: f32, is_vel: bool) -> Vec<f32> {
+        let n = self.size;
+        let mut diffused = vec![0.0; field.len()];
         for _ in 0..self.qual {
-            let sol_0 = sol.clone(); // This clone actually makes it faster?
+            let sol_0 = diffused.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
                 for x in 1..n-1 {
-                    sol[i!(n, x,y)] = 
+                    diffused[i!(n, x,y)] = 
                         (field[i!(n, x,y)] + rate * (
                             sol_0[i!(n, x,y+1)] + 
                             sol_0[i!(n, x,y-1)] + 
@@ -175,13 +156,14 @@ impl Fluid {
                         )) / (1.0 + 4.0 * rate);
                 }
             }
-            Fluid::bound(&mut sol, n, is_vel);
+            Fluid::bound_field(&mut diffused, n, is_vel);
         }
-        sol
+        diffused
     }
 
-    fn advect(field: &[f32], vx: &[f32], vy: &[f32], dt: f32, n: i32) -> Vec<f32> {
-        let mut new = vec![0.0; field.len()];
+    fn advect_field(&self, field: &[f32], vx: &[f32], vy: &[f32], dt: f32) -> Vec<f32> {
+        let n = self.size;
+        let mut advected = vec![0.0; field.len()];
         for y in 1..n-1 {
             for x in 1..n-1 {
                 let (vx, vy) = (vx[i!(n, x,y)], vy[i!(n, x,y)]);
@@ -193,13 +175,13 @@ impl Fluid {
                 let s1 = field[i!(n, qx+1, qy  )];
                 let s2 = field[i!(n, qx  , qy+1)];
                 let s3 = field[i!(n, qx+1, qy+1)];
-                new[i!(n, x ,y)] = blerp(s0, s1, s2, s3, x0.fract(), y0.fract());
+                advected[i!(n, x ,y)] = blerp(s0, s1, s2, s3, x0.fract(), y0.fract());
             }
         }
-        new
+        advected
     }
 
-    fn bound(field: &mut [f32], n: i32, invert: bool) {
+    fn bound_field(field: &mut [f32], n: i32, invert: bool) {
         let a = if invert { -1. } else { 1. };
         for i in 1..n-1 {
             field[i!(n,   0,i)] = a * field[i!(n,   1,i)];

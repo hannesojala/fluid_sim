@@ -4,9 +4,9 @@ use image::{GenericImageView, imageops::FilterType::Nearest};
 use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
-const VISC: f32 = 0.;//1e-15;
-const DIFF: f32 = 0.;//1e-15;
-const VORT: f32 = 1280.;
+const VISC: f32 = 1e-15;
+const DIFF: f32 = 1e-15;
+const VORT: f32 = 5.;
 
 const SCALE: i32 = 3;
 const SIZE: i32 = 256;
