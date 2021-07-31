@@ -42,8 +42,8 @@ impl Fluid {
         self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
         self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true);
 
-        self.vx = self.advect_field(&self.vx, &self.vx, &self.vy, dt_s);
-        self.vy = self.advect_field(&self.vy, &self.vx, &self.vy, dt_s);
+        self.vx = self.advect_field(&self.vx, dt_s);
+        self.vy = self.advect_field(&self.vy, dt_s);
 
         Fluid::bound_field(&mut self.vx, self.size, true);
         Fluid::bound_field(&mut self.vy, self.size, true);
@@ -56,9 +56,9 @@ impl Fluid {
         self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
         self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);
 
-        self.dye_r = self.advect_field(&self.dye_r, &self.vx, &self.vy, dt_s);
-        self.dye_g = self.advect_field(&self.dye_g, &self.vx, &self.vy, dt_s);
-        self.dye_b = self.advect_field(&self.dye_b, &self.vx, &self.vy, dt_s);
+        self.dye_r = self.advect_field(&self.dye_r, dt_s);
+        self.dye_g = self.advect_field(&self.dye_g, dt_s);
+        self.dye_b = self.advect_field(&self.dye_b, dt_s);
 
         Fluid::bound_field(&mut self.dye_r, self.size, false);
         Fluid::bound_field(&mut self.dye_g, self.size, false);
@@ -161,12 +161,12 @@ impl Fluid {
         diffused
     }
 
-    fn advect_field(&self, field: &[f32], vx: &[f32], vy: &[f32], dt: f32) -> Vec<f32> {
+    fn advect_field(&self, field: &[f32], dt: f32) -> Vec<f32> {
         let n = self.size;
         let mut advected = vec![0.0; field.len()];
         for y in 1..n-1 {
             for x in 1..n-1 {
-                let (vx, vy) = (vx[i!(n, x,y)], vy[i!(n, x,y)]);
+                let (vx, vy) = (self.vx[i!(n, x,y)], self.vy[i!(n, x,y)]);
                 let (x0, y0) = (
                     (x as f32 - dt * vx).clamp(0.5, (n-1) as f32 - 0.5),
                     (y as f32 - dt * vy).clamp(0.5, (n-1) as f32 - 0.5));
