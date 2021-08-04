@@ -117,20 +117,20 @@ impl Fluid {
         Fluid::bound_field(&mut self.vy, n, true);
     }
 
+    // Reintroduce vorticity lost by numerical inaccuracy
     fn confine_vorticity(&mut self, dt_s: f32) {
-        let n = self.size;
-        for y in 2..n-2 {
-            for x in 2..n-2 {
-                // Get the gradient of curl
+        for y in 2..self.size-2 {
+            for x in 2..self.size-2 {
+                // Get the gradient of the magnitude of velocity curl
                 let mut vort_grad_x = self.vel_curl_at(x, y-1).abs() - self.vel_curl_at(x, y+1).abs();
                 let mut vort_grad_y = self.vel_curl_at(x+1, y).abs() - self.vel_curl_at(x-1, y).abs();
-                // Normalize and scale by vorticity
+                // Normalized and scaled by vorticity constant
                 let len = (vort_grad_x*vort_grad_x + vort_grad_y*vort_grad_y).sqrt().max(f32::EPSILON); // max prevents divide by zero
                 vort_grad_x *= self.vort / len;
                 vort_grad_y *= self.vort / len;
-                // Adjust the velocity by the current curl scaled by the vorticity gradient
-                self.vx[i!(n,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_x;
-                self.vy[i!(n,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_y;
+                // Adjust the velocity by the current curl scaled by the gradient
+                self.vx[i!(self.size,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_x;
+                self.vy[i!(self.size,x,y)] += dt_s * self.vel_curl_at(x,y) * vort_grad_y;
             }
         }
     }
@@ -147,6 +147,7 @@ impl Fluid {
             let sol_0 = diffused.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
                 for x in 1..n-1 {
+                    // Diffusion is essentially a weighted averaging with neighbors
                     diffused[i!(n, x,y)] = 
                         (field[i!(n, x,y)] + rate * (
                             sol_0[i!(n, x,y+1)] + 
@@ -166,6 +167,7 @@ impl Fluid {
         let mut advected = vec![0.0; field.len()];
         for y in 1..n-1 {
             for x in 1..n-1 {
+                // Trace velocities back to find value where it 'came' from
                 let (vx, vy) = (self.vx[i!(n, x,y)], self.vy[i!(n, x,y)]);
                 let (x0, y0) = (
                     (x as f32 - dt * vx).clamp(0.5, (n-1) as f32 - 0.5),
@@ -175,6 +177,7 @@ impl Fluid {
                 let s1 = field[i!(n, qx+1, qy  )];
                 let s2 = field[i!(n, qx  , qy+1)];
                 let s3 = field[i!(n, qx+1, qy+1)];
+                // Blerp between four samples to get proper value at position
                 advected[i!(n, x ,y)] = blerp(s0, s1, s2, s3, x0.fract(), y0.fract());
             }
         }
