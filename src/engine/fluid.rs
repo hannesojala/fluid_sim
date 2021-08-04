@@ -39,30 +39,25 @@ impl Fluid {
 
     pub fn update(&mut self, dt_s: f32) {
         let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
-        self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
-        self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true);
 
         self.vx = self.advect_field(&self.vx, dt_s);
         self.vy = self.advect_field(&self.vy, dt_s);
 
-        Fluid::bound_field(&mut self.vx, self.size, true);
-        Fluid::bound_field(&mut self.vy, self.size, true);
+        self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
+        self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true); // bounds
         
         self.confine_vorticity(dt_s);
         self.remove_divergence();
         
         let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
-        self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
-        self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
-        self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);
 
         self.dye_r = self.advect_field(&self.dye_r, dt_s);
         self.dye_g = self.advect_field(&self.dye_g, dt_s);
         self.dye_b = self.advect_field(&self.dye_b, dt_s);
 
-        Fluid::bound_field(&mut self.dye_r, self.size, false);
-        Fluid::bound_field(&mut self.dye_g, self.size, false);
-        Fluid::bound_field(&mut self.dye_b, self.size, false);
+        self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
+        self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
+        self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);  // bounds
     }
 
     pub fn set_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {
