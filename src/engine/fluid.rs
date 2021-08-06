@@ -5,15 +5,6 @@ macro_rules! i(
     }
 );
 
-fn fast_get(x: i32, y: i32, n: i32, a: &mut [f32]) -> f32 {
-    let i = i!(n,x,y);
-    if let Some(v) = a.get(i) {
-        *v
-    } else {
-        0.0
-    }
-}
-
 fn lerp(v1: f32, v2: f32, k: f32) -> f32 { v1 + k * (v2 - v1) }
 
 fn blerp(v1: f32, v2: f32, v3: f32, v4: f32, k1: f32, k2: f32) -> f32 { 
