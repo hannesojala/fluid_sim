@@ -41,7 +41,7 @@ impl Fluid {
         self.vx = self.advect_field(&self.vx, dt_s);
         self.vy = self.advect_field(&self.vy, dt_s);
 
-        if self.diff > 0. {
+        if self.visc > 0. {
             let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
             self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
             self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true); // bounds
