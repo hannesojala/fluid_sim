@@ -6,14 +6,14 @@ use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
 const VISC: f32 = 0.0;
 const DIFF: f32 = 0.0;
-const VORT: f32 = 4.;
+const VORT: f32 = 5.;
 
 const SCALE: i32 = 2;
-const SIZE: i32 = 400;
-const MAX_FPS: u64 = 144;
+const SIZE: i32 = 256;
+const MAX_FPS: u64 = 15;
 
-// Quality related, 5 for low, 10-15 for medium, 20 for high
-const GAUSS_SEIDEL_ITERATIONS: u32 = 15;
+// Quality related, higher the better. try 5-10-15-20-100-200 to see different results
+const GAUSS_SEIDEL_ITERATIONS: u32 = 200;
 
 const COLORS: [(i16, i16, i16); 4] = [
     (255, 0, 0),

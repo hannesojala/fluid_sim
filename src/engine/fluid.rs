@@ -19,6 +19,8 @@ pub struct Fluid {
     size: i32,
     vx: Vec<f32>,
     vy: Vec<f32>,
+    div: Vec<f32>,
+    div_sol: Vec<f32>,
     dye_r: Vec<f32>,
     dye_g: Vec<f32>,
     dye_b: Vec<f32>,
@@ -31,6 +33,8 @@ impl Fluid {
             visc, diff, size, vort, qual,
             vx: vec![0.0; flat_size],
             vy: vec![0.0; flat_size],
+            div: vec![0.0; flat_size],
+            div_sol: vec![0.0; flat_size],
             dye_r: vec![0.0; flat_size],
             dye_g: vec![0.0; flat_size],
             dye_b: vec![0.0; flat_size],
@@ -48,7 +52,7 @@ impl Fluid {
         }
         
         self.confine_vorticity(dt_s);
-        self.remove_divergence();
+        self.remove_divergence(dt_s);
 
         self.dye_r = self.advect_field(&self.dye_r, dt_s);
         self.dye_g = self.advect_field(&self.dye_g, dt_s);
@@ -85,29 +89,33 @@ impl Fluid {
         (self.vx[i], self.vy[i])
     }
 
-    fn remove_divergence(&mut self) {
+    fn remove_divergence(&mut self, dt_s: f32) {
         let n = self.size;
-        let mut div = vec![0.0; self.vx.len()];
-        let mut p = vec![0.0; self.vx.len()];
+        for el in self.div.iter_mut() { *el = 0.0; }
+        // interesting pressure like effect...
+        static PCONST: f32 = 0.001;
+        for el in self.div_sol.iter_mut() { *el = *el - PCONST * *el * dt_s; }
+        // what i was doing before...
+        // for el in self.div_sol.iter_mut() { *el = 0.0; }
         for y in 1..n-1 {
             for x in 1..n-1 {
-                div[i!(n, x,y)] = -0.5 * (self.vx[i!(n, x+1,y)] - self.vx[i!(n, x-1,y)] + self.vy[i!(n, x,y+1)] - self.vy[i!(n, x,y-1)]) / n as f32;
+                self.div[i!(n, x,y)] = -0.5 * (self.vx[i!(n, x+1,y)] - self.vx[i!(n, x-1,y)] + self.vy[i!(n, x,y+1)] - self.vy[i!(n, x,y-1)]) / n as f32;
             }
         }
-        Fluid::bound_field(&mut div, n, false);
+        Fluid::bound_field(&mut self.div, n, false);
         for _ in 0..self.qual {
-            let p_0 = p.clone(); // This clone actually makes it faster?
+            let p_0 = self.div_sol.clone(); // This clone actually makes it faster?
             for y in 1..n-1 {
                 for x in 1..n-1 {
-                    p[i!(n, x,y)] = (div[i!(n, x,y)] + p_0[i!(n, x-1,y)] + p_0[i!(n, x+1,y)] + p_0[i!(n, x,y-1)] + p_0[i!(n, x,y+1)]) / 4.0;
+                    self.div_sol[i!(n, x,y)] = (self.div[i!(n, x,y)] + p_0[i!(n, x-1,y)] + p_0[i!(n, x+1,y)] + p_0[i!(n, x,y-1)] + p_0[i!(n, x,y+1)]) / 4.0;
                 }
             }
-            Fluid::bound_field(&mut p, n, false);
+            Fluid::bound_field(&mut self.div_sol, n, false);
         }
         for y in 1..n-1 {
             for x in 1..n-1 {
-                self.vx[i!(n, x,y)] -= 0.5 * (p[i!(n, x+1,y)] - p[i!(n, x-1,y)]) * n as f32;
-                self.vy[i!(n, x,y)] -= 0.5 * (p[i!(n, x,y+1)] - p[i!(n, x,y-1)]) * n as f32;
+                self.vx[i!(n, x,y)] -= 0.5 * (self.div_sol[i!(n, x+1,y)] - self.div_sol[i!(n, x-1,y)]) * n as f32;
+                self.vy[i!(n, x,y)] -= 0.5 * (self.div_sol[i!(n, x,y+1)] - self.div_sol[i!(n, x,y-1)]) * n as f32;
             }
         }
         Fluid::bound_field(&mut self.vx, n, true);
