@@ -1,9 +1,18 @@
 // Hate this code so much but IDK how to make it prettier.
 macro_rules! i(
-    ($n:expr, $x:expr, $y:expr) => (
+    ($n:expr, $x:expr, $y:expr) => {
         ($n * $y + $x) as usize
-    )
+    }
 );
+
+fn fast_get(x: i32, y: i32, n: i32, a: &mut [f32]) -> f32 {
+    let i = i!(n,x,y);
+    if let Some(v) = a.get(i) {
+        *v
+    } else {
+        0.0
+    }
+}
 
 fn lerp(v1: f32, v2: f32, k: f32) -> f32 { v1 + k * (v2 - v1) }
 
@@ -38,26 +47,28 @@ impl Fluid {
     }
 
     pub fn update(&mut self, dt_s: f32) {
-        let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
-
         self.vx = self.advect_field(&self.vx, dt_s);
         self.vy = self.advect_field(&self.vy, dt_s);
 
-        self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
-        self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true); // bounds
+        if self.diff > 0. {
+            let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
+            self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
+            self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true); // bounds
+        }
         
         self.confine_vorticity(dt_s);
         self.remove_divergence();
-        
-        let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
 
         self.dye_r = self.advect_field(&self.dye_r, dt_s);
         self.dye_g = self.advect_field(&self.dye_g, dt_s);
         self.dye_b = self.advect_field(&self.dye_b, dt_s);
-
-        self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
-        self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
-        self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);  // bounds
+        
+        if self.diff > 0. {
+            let dye_diffusion_rate = dt_s * self.diff * ((self.size - 2)*(self.size - 2)) as f32;
+            self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
+            self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
+            self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);  // bounds
+        }
     }
 
     pub fn set_dye(&mut self, x: i32, y: i32, rgb: (f32, f32, f32)) {

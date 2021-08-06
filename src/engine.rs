@@ -5,11 +5,11 @@ use std::{thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
 const VISC: f32 = 1e-15;
-const DIFF: f32 = 1e-15;
-const VORT: f32 = 5.;
+const DIFF: f32 = 0.0;
+const VORT: f32 = 4.;
 
-const SCALE: i32 = 3;
-const SIZE: i32 = 256;
+const SCALE: i32 = 2;
+const SIZE: i32 = 400;
 const MAX_FPS: u64 = 144;
 
 // Quality related, 5 for low, 10-15 for medium, 20 for high
