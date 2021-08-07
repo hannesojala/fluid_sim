@@ -10,7 +10,7 @@ const VORT: f32 = 5.;
 
 const SCALE: i32 = 2;
 const SIZE: i32 = 256;
-const MAX_FPS: u64 = 15;
+const MAX_FPS: u64 = 144;
 
 // Quality related, higher the better. try 5-10-15-20-100-200 to see different results
 const GAUSS_SEIDEL_ITERATIONS: u32 = 200;
