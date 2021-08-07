@@ -13,7 +13,7 @@ const SIZE: i32 = 256;
 const MAX_FPS: u64 = 144;
 
 // Quality related, higher the better. try 5-10-15-20-100-200 to see different results
-const GAUSS_SEIDEL_ITERATIONS: u32 = 200;
+const GAUSS_SEIDEL_ITERATIONS: u32 = 50;
 
 const COLORS: [(i16, i16, i16); 4] = [
     (255, 0, 0),

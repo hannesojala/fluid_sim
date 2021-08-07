@@ -49,6 +49,9 @@ impl Fluid {
             let velocity_diffusion_rate = dt_s * self.visc * ((self.size - 2)*(self.size - 2)) as f32;
             self.vx = self.diffuse_field(&self.vx, velocity_diffusion_rate, true);
             self.vy = self.diffuse_field(&self.vy, velocity_diffusion_rate, true); // bounds
+        } else {
+            Fluid::bound_field(&mut self.vx, self.size, true);
+            Fluid::bound_field(&mut self.vy, self.size, true);
         }
         
         self.confine_vorticity(dt_s);
@@ -63,6 +66,10 @@ impl Fluid {
             self.dye_r = self.diffuse_field(&self.dye_r, dye_diffusion_rate, false);
             self.dye_g = self.diffuse_field(&self.dye_g, dye_diffusion_rate, false);
             self.dye_b = self.diffuse_field(&self.dye_b, dye_diffusion_rate, false);  // bounds
+        } else {
+            Fluid::bound_field(&mut self.dye_r, self.size, false);
+            Fluid::bound_field(&mut self.dye_g, self.size, false);
+            Fluid::bound_field(&mut self.dye_b, self.size, false);
         }
     }
 
@@ -93,7 +100,7 @@ impl Fluid {
         let n = self.size;
         for el in self.div.iter_mut() { *el = 0.0; }
         // interesting pressure like effect...
-        static PCONST: f32 = 0.001;
+        static PCONST: f32 = 0.0001;
         for el in self.div_sol.iter_mut() { *el = *el - PCONST * *el * dt_s; }
         // what i was doing before...
         // for el in self.div_sol.iter_mut() { *el = 0.0; }
