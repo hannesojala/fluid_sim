@@ -1,19 +1,19 @@
 pub mod fluid;
 use fluid::{*};
 use image::{GenericImageView, imageops::FilterType::Nearest};
-use std::{thread::sleep, time::{Duration, Instant}};
+use std::{path::Path, thread::sleep, time::{Duration, Instant}};
 use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Rect};
 
 const VISC: f32 = 0.0;
 const DIFF: f32 = 0.0;
 const VORT: f32 = 5.;
 
-const SCALE: i32 = 2;
+const SCALE: i32 = 3;
 const SIZE: i32 = 256;
-const MAX_FPS: u64 = 144;
+const MAX_FPS: u64 = 1000;
 
-// Quality related, higher the better. try 5-10-15-20-100-200 to see different results
-const GAUSS_SEIDEL_ITERATIONS: u32 = 50;
+// Quality related, higher the better. try 5-10-15-20-50-100-200 to see different results
+const GAUSS_SEIDEL_ITERATIONS: u32 = 100;
 
 const COLORS: [(i16, i16, i16); 4] = [
     (255, 0, 0),
@@ -37,6 +37,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn init() -> Engine {
+        let args: Vec<String> = std::env::args().collect();
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().expect("Put an image of size SIZE in this directory called image.jpg");
         let win_size = (SIZE * SCALE) as u32;
@@ -44,7 +45,7 @@ impl Engine {
             .position_centered()
             .build().unwrap();
         let canvas = window.into_canvas().build().unwrap();
-        let im = image::open(&std::path::Path::new("./image.jpg"));
+        let im = image::open(&Path::new(&args.get(1).unwrap_or(&String::from("image.jpg"))));
         let mut fluid = Fluid::new(VISC, DIFF, VORT, GAUSS_SEIDEL_ITERATIONS, SIZE);
         if let Ok(i) = im {
             let image = i.resize_to_fill(SIZE as u32, SIZE as u32, Nearest);

@@ -100,10 +100,10 @@ impl Fluid {
         let n = self.size;
         for el in self.div.iter_mut() { *el = 0.0; }
         // interesting pressure like effect...
-        static PCONST: f32 = 0.0001;
-        for el in self.div_sol.iter_mut() { *el = *el - PCONST * *el * dt_s; }
+        // static PCONST: f32 = 2.0;
+        //for el in self.div_sol.iter_mut() { *el = *el*(1.0 - PCONST * dt_s); }
         // what i was doing before...
-        // for el in self.div_sol.iter_mut() { *el = 0.0; }
+        for el in self.div_sol.iter_mut() { *el = 0.0; }
         for y in 1..n-1 {
             for x in 1..n-1 {
                 self.div[i!(n, x,y)] = -0.5 * (self.vx[i!(n, x+1,y)] - self.vx[i!(n, x-1,y)] + self.vy[i!(n, x,y+1)] - self.vy[i!(n, x,y-1)]) / n as f32;
